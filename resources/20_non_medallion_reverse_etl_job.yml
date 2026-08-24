@@ -1,0 +1,38 @@
+# Non-medallion example: reverse ETL style publishing.
+# Purpose: show that not every workflow in Databricks follows medallion conventions.
+
+resources:
+  jobs:
+    template_non_medallion_reverse_etl_job:
+      name: template_non_medallion_reverse_etl_job
+
+      tags:
+        template: true
+        architecture: non_medallion
+        pattern: reverse_etl
+
+      # Example schedule for external sync windows.
+      schedule:
+        quartz_cron_expression: "0 30 7 ? * MON-FRI *"
+        timezone_id: "UTC"
+        pause_status: "PAUSED"
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog_name}
+        - name: curated_schema
+          default: ${resources.schemas.template_curated.name}
+
+      tasks:
+        - task_key: publish_customer_flags
+          notebook_task:
+            notebook_path: ../notebooks/non_medallion_example/reverse_etl_publish.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              curated_schema: "{{job.parameters.curated_schema}}"
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "2"

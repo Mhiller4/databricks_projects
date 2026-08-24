@@ -1,0 +1,92 @@
+# Databricks Asset Bundle Starter Template
+# Purpose: teach DAB structure through placeholder examples and commented patterns.
+#
+# IMPORTANT NOTE ABOUT VARIABLES:
+# - Defaults at the top are convenience values for local validation and quick starts.
+# - In shared environments, set real values per target and avoid relying on defaults.
+# - Treat defaults as examples, not production truth.
+
+bundle:
+  name: dab-template-starter
+
+variables:
+  catalog_name:
+    description: "Unity Catalog for this project"
+    default: your_catalog_dev
+
+  drop_zone_schema:
+    description: "Landing/drop-zone schema (medallion: drop_zone)"
+    default: template_drop_zone
+
+  raw_schema:
+    description: "Raw (bronze) schema"
+    default: template_raw
+
+  enriched_schema:
+    description: "Enriched (silver) schema"
+    default: template_enriched
+
+  curated_schema:
+    description: "Curated (gold) schema"
+    default: template_curated
+
+  drop_zone_volume:
+    description: "Managed volume in drop_zone schema used for file landing"
+    default: landing
+
+  owner_email:
+    description: "Optional owner/contact for notifications"
+    default: ""
+
+# One resource per file keeps changes isolated and reviewable.
+include:
+  - resources/*.yml
+
+# ===============================================================================================
+# Targets
+# ===============================================================================================
+targets:
+  personal_dev:
+    default: true
+    mode: development
+    workspace:
+      host: https://<your-personal-workspace>.azuredatabricks.net
+      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog_name: your_catalog_dev
+
+  dev:
+    mode: production
+    default: false
+    workspace:
+      host: https://<your-dev-workspace>.azuredatabricks.net
+      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog_name: your_catalog_dev
+    permissions:
+      - group_name: <your-dev-group>
+        level: CAN_MANAGE
+
+  test:
+    mode: production
+    default: false
+    workspace:
+      host: https://<your-test-workspace>.azuredatabricks.net
+      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog_name: your_catalog_test
+    permissions:
+      - group_name: <your-test-group>
+        level: CAN_MANAGE
+
+  prod:
+    mode: production
+    default: false
+    workspace:
+      host: https://<your-prod-workspace>.azuredatabricks.net
+      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog_name: your_catalog_prod
+    permissions:
+      - group_name: <your-prod-group>
+        level: CAN_MANAGE

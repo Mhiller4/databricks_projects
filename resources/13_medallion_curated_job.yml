@@ -1,0 +1,35 @@
+# Medallion example: curated (gold) stage.
+# Shows a final reporting or dashboard-ready output step.
+
+resources:
+  jobs:
+    template_medallion_curated_job:
+      name: template_medallion_curated_job
+
+      tags:
+        template: true
+        architecture: medallion
+        layer: curated
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog_name}
+        - name: enriched_schema
+          default: ${resources.schemas.template_enriched.name}
+        - name: curated_schema
+          default: ${resources.schemas.template_curated.name}
+
+      tasks:
+        - task_key: build_curated_outputs
+          notebook_task:
+            notebook_path: ../notebooks/medallion_example/curated/build_daily_sales_curated.py
+            base_parameters:
+              catalog: "{{job.parameters.catalog}}"
+              enriched_schema: "{{job.parameters.enriched_schema}}"
+              curated_schema: "{{job.parameters.curated_schema}}"
+          environment_key: default
+
+      environments:
+        - environment_key: default
+          spec:
+            client: "2"
