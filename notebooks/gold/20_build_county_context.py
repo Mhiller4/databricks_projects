@@ -47,12 +47,13 @@ ctx = (
     .join(hosp, "fips", "left")
     .join(od, "fips", "left")
 )
-per100k = lambda c: F.round(F.col(c) / F.col("population") * 100_000, 2)  # noqa: E731
+div = lambda a, b: F.expr(f"try_divide({a}, {b})")  # NULL instead of an ANSI divide-by-zero error  # noqa: E731
+per100k = lambda c: F.round(div(c, "population") * 100_000, 2)  # noqa: E731
 ctx = (
     ctx.fillna(0, subset=["n_hospitals", "n_acute_care_hospitals", "n_critical_access_hospitals", "n_hospitals_with_er", "n_birthing_friendly_hospitals"])
     .fillna(False, subset=["hpsa_pc_has_geographic", "hpsa_pc_whole_county", "hpsa_mh_has_geographic", "hpsa_mh_whole_county"])
     .withColumn("overdose_deaths_per_100k", per100k("overdose_deaths_latest"))
-    .withColumn("overdose_change_pct", F.round((F.col("overdose_deaths_latest") / F.col("overdose_deaths_prior") - 1) * 100, 1))
+    .withColumn("overdose_change_pct", F.round((div("overdose_deaths_latest", "overdose_deaths_prior") - 1) * 100, 1))
     .withColumn("hospitals_per_100k", per100k("n_hospitals"))
     .withColumn("er_hospitals_per_100k", per100k("n_hospitals_with_er"))
     .withColumn("has_no_hospital", F.col("n_hospitals") == 0)

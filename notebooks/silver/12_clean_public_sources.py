@@ -73,7 +73,7 @@ svi = svi_b.select(
     F.col("state").alias("state_name"),
     F.col("county").alias("county_name"),
     *[num(src).alias(dst) for src, dst in SVI_FRIENDLY.items()],
-).withColumn("population_per_sq_mi", F.round(F.col("population") / F.col("area_sq_mi"), 1))
+).withColumn("population_per_sq_mi", F.round(F.expr("try_divide(population, area_sq_mi)"), 1))
 save(svi, "svi_county", "CDC/ATSDR SVI 2022, one row per county. pct_* are ACS 2018-2022 estimates; svi_*_pctile are national percentile ranks 0-1 (higher = more vulnerable).")
 
 # COMMAND ----------
@@ -108,7 +108,7 @@ xw = (
 )
 w = Window.partitionBy("zcta5")
 xw = (
-    xw.withColumn("land_share", F.round(F.col("land_area_part") / F.sum("land_area_part").over(w), 4))
+    xw.withColumn("land_share", F.round(F.expr("try_divide(land_area_part, sum(land_area_part) OVER (PARTITION BY zcta5))"), 4))
     .withColumn("rank", F.row_number().over(w.orderBy(F.desc("land_area_part"))))
     .withColumn("is_primary", F.col("rank") == 1)
     .drop("rank")
