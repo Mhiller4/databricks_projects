@@ -66,51 +66,142 @@ class CareFinderError(Exception):
 # ---------------------------------------------------------------------------------------------
 
 
+PRECISION = {  # kind -> (label, is_precise)
+    "coordinates": ("exact point", True),
+    "pin": ("PIN code area", True),
+    "post_office": ("locality", True),
+    "city": ("city centre", False),
+    "district": ("district centre", False),
+    "state": ("state centre", False),
+}
+BIG_CITY_POINTS = 30       # a city with this many facilities is big enough that its centre is a rough point
+QUALIFIER_RADIUS_KM = 80   # "Bandra, Mumbai": keep Bandra candidates within this distance of Mumbai
+CLARIFY_SPREAD_KM = 50     # same name in places this far apart -> ask which one
+MIN_CITY_POINTS = 3        # city points from fewer facility records rank below India Post localities
+DIRECTION_SUFFIXES = {"EAST", "WEST", "NORTH", "SOUTH", "CENTRAL", "EASTERN", "WESTERN"}
+
+
+def _km_between(a: dict, b: dict) -> float:
+    la1, lo1, la2, lo2 = map(math.radians, (a["lat"], a["lon"], b["lat"], b["lon"]))
+    h = math.sin((la2 - la1) / 2) ** 2 + math.cos(la1) * math.cos(la2) * math.sin((lo2 - lo1) / 2) ** 2
+    return 2 * 6371 * math.asin(math.sqrt(h))
+
+
+def _lookup(store: Store, name_key: str, prefix: bool) -> list[dict]:
+    cols = "kind, name_key, display_name, district, state, state_key, lat, lon, priority, n_points"
+    if not prefix:
+        return store.query(f"SELECT {cols} FROM location_lookup WHERE name_key = ? ORDER BY priority, n_points DESC LIMIT 60", [name_key])
+    return store.query(
+        f"SELECT {cols} FROM location_lookup WHERE starts_with(name_key, ?) AND name_key <> ? AND kind NOT IN ('pin', 'state') "
+        "ORDER BY priority, n_points DESC LIMIT 60",
+        [name_key, name_key],
+    )
+
+
+def _states(store: Store) -> set[str]:
+    if not hasattr(store, "_state_keys"):
+        store._state_keys = {r["state_key"] for r in store.query("SELECT DISTINCT state_key FROM location_lookup WHERE kind = 'state'")}
+    return store._state_keys
+
+
 def resolve_location(store: Store, q: str | dict) -> list[dict]:
-    """Candidates for what the user typed, best first. Mirrors resolve_location() in gold/23."""
+    """Candidates for what the user typed, best first.
+
+    "800001" (PIN), "Andheri" (locality), "Darbhanga, Bihar" (qualifier = state),
+    "Bandra, Mumbai" / "Salt Lake, Kolkata" (qualifier = a nearby place), "25.6, 85.1", or {lat, lon}.
+    Localities also match by prefix ("Bandra" finds Bandra West and Bandra East).
+    """
     if isinstance(q, dict):
         return [{"kind": "coordinates", "display_name": f"{q['lat']:.4f}, {q['lon']:.4f}", "district": None,
-                 "state": None, "lat": float(q["lat"]), "lon": float(q["lon"]), "priority": 0}]
+                 "state": None, "lat": float(q["lat"]), "lon": float(q["lon"]), "priority": 0, "n_points": 1}]
     raw = (q or "").strip()
     m = COORD_RE.match(raw)
     if m:
         lat, lon = float(m.group(1)), float(m.group(2))
         return [{"kind": "coordinates", "display_name": f"Coordinates {lat}, {lon}", "district": None,
-                 "state": None, "lat": lat, "lon": lon, "priority": 0}]
-    parts = [p.strip() for p in raw.split(",")]
+                 "state": None, "lat": lat, "lon": lon, "priority": 0, "n_points": 1}]
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        return []
     name_key = care.key(parts[0])
-    state_key = care.key(parts[1]) if len(parts) > 1 and parts[1] else None
-    if state_key:
-        state_key = care.STATE_ALIASES.get(state_key, state_key)
     if not name_key:
         return []
-    cols = "kind, display_name, district, state, lat, lon, priority, n_points"
-    state_sql = "AND state_key = ?" if state_key else ""
-    params = [name_key] + ([state_key] if state_key else [])
-    rows = store.query(
-        f"SELECT {cols} FROM location_lookup WHERE name_key = ? {state_sql} ORDER BY priority, n_points DESC LIMIT 20", params
-    )
-    if not rows and len(name_key) >= 4:
-        rows = store.query(
-            f"SELECT kind, display_name || ' (partial match)' AS display_name, district, state, lat, lon, priority + 10 AS priority, n_points "
-            f"FROM location_lookup WHERE starts_with(name_key, ?) AND kind <> 'pin' {state_sql} ORDER BY priority, n_points DESC LIMIT 20",
-            params,
-        )
-    return rows
+
+    # qualifiers: a state narrows by state; anything else narrows to places near that place
+    state_key, anchor = None, None
+    for qual in parts[1:]:
+        qk = care.STATE_ALIASES.get(care.key(qual), care.key(qual))
+        if qk in _states(store):
+            state_key = qk
+        elif anchor is None:
+            hits = _lookup(store, qk, prefix=False) or _lookup(store, qk, prefix=True)
+            hits = [h for h in hits if not state_key or h["state_key"] == state_key]
+            anchor = hits[0] if hits else None
+
+    def keep(rows):
+        rows = [r for r in rows if not state_key or r["state_key"] == state_key]
+        if anchor:
+            rows = [r for r in rows if _km_between(r, anchor) <= QUALIFIER_RADIUS_KM]
+        return rows
+
+    exact = keep(_lookup(store, name_key, prefix=False))
+    partial = keep(_lookup(store, name_key, prefix=True)) if len(name_key) >= 4 else []
+    # "Bandra" -> "Bandra West": a direction suffix is the same place, not a fuzzy guess
+    variants = [r for r in partial if r["name_key"][len(name_key):] in DIRECTION_SUFFIXES]
+    fuzzy = [r for r in partial if r not in variants]
+    for r in fuzzy:
+        r["display_name"] += " (partial match)"
+        r["priority"] += 10
+    rows = exact + variants if (exact or variants) else fuzzy
+    for r in rows:  # a "city" built from 1-2 facility records is a shakier point than an India Post locality
+        if r["kind"] == "city" and (r["n_points"] or 0) < MIN_CITY_POINTS:
+            r["priority"] = 4.5
+    rows.sort(key=lambda r: (r["priority"], -(r["n_points"] or 0)))
+    return rows[:20]
 
 
 def pick_location(candidates: list[dict], q) -> tuple[dict, list[dict]]:
-    """Best candidate, or raise needs_clarification when the same name exists in several states."""
+    """Best candidate, or raise needs_clarification when the name points to places far apart."""
     if not candidates:
-        raise CareFinderError("unresolved_location", f"I couldn't find a place called '{q}'. Try a city, district or 6-digit PIN code.")
+        raise CareFinderError("unresolved_location", f"I couldn't find a place called '{q}'. Try a city, district, locality or 6-digit PIN code.")
     best = candidates[0]
-    same_tier = [c for c in candidates if c["priority"] == best["priority"]]
-    states = list(dict.fromkeys(c["state"] for c in same_tier if c.get("state")))
-    if len(states) > 1:
-        options = [{"display_name": c["display_name"], "state": c["state"], "query": f"{str(q).split(',')[0].strip()}, {c['state']}"}
-                   for c in same_tier]
-        raise CareFinderError("needs_clarification", f"'{q}' matches places in {len(states)} states. Which one?", options=options)
+    if best["kind"] in ("coordinates", "pin"):
+        return best, []
+    # candidates as specific as the best one (same kind), plus partial-match localities
+    # only places as prominent as the best one compete: a city vs cities, a locality vs localities
+    pool = [c for c in candidates if c["kind"] == best["kind"] and "(partial match)" not in c["display_name"]]
+    far = [c for c in pool if _km_between(c, best) > CLARIFY_SPREAD_KM]
+    if far:
+        seen, options = set(), []
+        for c in [best] + far:
+            base = c["display_name"].replace(" (partial match)", "").split(" (")[0].split(",")[0]
+            district = c.get("district")
+            label = district if district and care.key(district) != care.key(base) else c.get("state")
+            k = (c["state"], label, care.key(base))
+            if k in seen:
+                continue
+            seen.add(k)
+            options.append({"display_name": c["display_name"].replace(" (partial match)", ""), "state": c["state"],
+                            "district": c.get("district"), "query": f"{base}, {label}"})
+            if len(options) >= 5:
+                break
+        if len(options) > 1:
+            raise CareFinderError("needs_clarification", f"'{q}' matches places in different areas. Which one?", options=options)
     return best, candidates[1:6]
+
+
+def location_precision(loc: dict) -> dict:
+    label, precise = PRECISION.get(loc["kind"], ("place", False))
+    if loc["kind"] == "city" and (loc.get("n_points") or 0) < BIG_CITY_POINTS:
+        precise = True  # a small town's centre is close enough
+    return {
+        "precision": label,
+        "is_precise": precise,
+        "ask_for_more_detail": not precise,
+        "more_detail_prompt": None if precise else
+            f"Distances are measured from the {label} of {loc['display_name'].split(' (')[0]}. "
+            "A locality or 6-digit PIN code would give closer, more accurate results.",
+    }
 
 
 # ---------------------------------------------------------------------------------------------
@@ -220,6 +311,7 @@ class Request:
     urgency: str = "routine"
     weights: dict | None = None
     top_n: int = 3
+    audience: str | None = None  # 'provider' | 'patient' | None (general)
 
 
 def recommend(store: Store, req: Request) -> dict:
@@ -348,7 +440,8 @@ def recommend(store: Store, req: Request) -> dict:
             "service": {"input": req.service, "key": svc.key, "label": svc.label, "matched_by": m.how, "alternatives": m.alternatives,
                         "tau_km": svc.tau_km},
             "location": {"input": req.location, **{k: loc.get(k) for k in ("kind", "display_name", "district", "state", "lat", "lon")},
-                         "alternatives": [c["display_name"] for c in other_locs]},
+                         **location_precision(loc), "alternatives": [c["display_name"] for c in other_locs]},
+            "audience": req.audience,
             "urgency": urgency,
             "weights": weights,
             "radius_km": radius,
@@ -371,6 +464,6 @@ def recommend(store: Store, req: Request) -> dict:
         "skipped_nearby": skipped,
         "medical_desert_alert": desert,
     }
-    resp["spoken_summary"] = spoken_summary(resp)
+    resp["spoken_summary"] = spoken_summary(resp, req.audience)
     resp["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return resp

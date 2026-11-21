@@ -78,3 +78,30 @@ def test_broadcast_reaches_websocket(client):
         while msg.get("payload", {}).get("query", {}).get("location", {}).get("input") != "Patna, Bihar":
             msg = ws.receive_json()
         assert msg["type"] == "recommendation" and msg["source"] == "voice"
+
+
+def test_locality_with_city_qualifier(client):
+    r = post(client, service="dialysis", location="Bandra, Mumbai")
+    assert r["status"] == "ok" and "Bandra" in r["query"]["location"]["display_name"]
+    assert r["query"]["location"]["is_precise"]
+    assert post(client, service="dialysis", location="Koramangala")["status"] == "ok"
+    assert post(client, service="dialysis", location="Patna")["status"] == "ok"  # villages named Patna don't compete
+
+
+def test_big_city_asks_for_more_detail(client):
+    r = post(client, service="dialysis", location="Mumbai")
+    assert r["query"]["location"]["ask_for_more_detail"]
+    assert "PIN code" in r["spoken_summary"]
+    assert not post(client, service="dialysis", location="400053")["query"]["location"]["ask_for_more_detail"]
+
+
+def test_audience_summaries_share_the_same_facts(client):
+    body = dict(service="dialysis", location="Darbhanga, Bihar")
+    prov, pat = post(client, audience="provider", **body), post(client, audience="patient", **body)
+    assert prov["recommendations"] == pat["recommendations"], "audience changes wording only, never the ranking"
+    top = prov["recommendations"][0]["name"]
+    assert top in prov["spoken_summary"] and top in pat["spoken_summary"]
+    assert "confidence" in prov["spoken_summary"] and "Second" in prov["spoken_summary"]
+    assert len(pat["spoken_summary"].split()) < len(prov["spoken_summary"].split())
+    em = post(client, service="trauma", location="Lucknow", urgency="emergency", audience="patient")
+    assert em["spoken_summary"].startswith("If this is life-threatening, call 108")

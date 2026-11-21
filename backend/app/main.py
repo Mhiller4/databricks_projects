@@ -47,6 +47,7 @@ class RecommendRequest(BaseModel):
     top_n: int = Field(3, ge=1, le=3)
     broadcast_to_ui: bool = False
     source: str = Field("ui", description="who asked: ui | voice")
+    audience: Literal["provider", "patient"] | None = Field(None, description="tailors the spoken summary")
 
 
 class Live:
@@ -103,13 +104,13 @@ async def recommend(req: RecommendRequest):
     try:
         resp = await asyncio.to_thread(
             engine.recommend, get_store(),
-            engine.Request(service=req.service, location=loc, urgency=req.urgency, weights=weights, top_n=req.top_n),
+            engine.Request(service=req.service, location=loc, urgency=req.urgency, weights=weights, top_n=req.top_n, audience=req.audience),
         )
     except engine.CareFinderError as e:
         resp = {"status": e.status, "message": e.message, "spoken_summary": e.message, **e.extra,
                 "query": {"service": req.service, "location": loc, "urgency": req.urgency}}
     if req.broadcast_to_ui:
-        await live.broadcast({"type": "recommendation", "source": req.source, "payload": resp})
+        await live.broadcast({"type": "recommendation", "source": req.source, "audience": req.audience, "payload": resp})
     return JSONResponse(resp)
 
 
