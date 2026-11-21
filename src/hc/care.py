@@ -233,6 +233,8 @@ TRUST_PENALTIES = {
     "beds_doctors_implausible": (0.85, "Lists {capacity} beds but only {number_doctors} doctor(s); numbers may be merged from different places."),
     "sparse_record": (0.85, "Almost no supporting detail (no beds, doctors, year established or equipment listed)."),
 }
+# single_source / few_sources are waived when the facility also appears in the National Health Portal
+# hospital directory (an independent source; gold/27, src/hc/ext.py).
 PIN_COORD_CONFLICT_KM = 50
 TRUST_FLOOR = 0.05
 

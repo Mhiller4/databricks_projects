@@ -25,7 +25,8 @@ EXCEL_EXT = {"xlsx", "xlsm", "xls"}
 SAS_EXT = {"xpt", "sas7bdat"}  # NHANES ships .XPT
 STATA_EXT = {"dta"}
 PARQUET_EXT = {"parquet"}
-SUPPORTED_EXT = TEXT_EXT | JSON_EXT | EXCEL_EXT | SAS_EXT | STATA_EXT | PARQUET_EXT
+GEOJSON_EXT = {"geojson"}  # one row per feature: properties as columns + geometry as a GeoJSON string
+SUPPORTED_EXT = TEXT_EXT | JSON_EXT | EXCEL_EXT | SAS_EXT | STATA_EXT | PARQUET_EXT | GEOJSON_EXT
 
 
 def ext_of(path: str) -> str:
@@ -157,6 +158,8 @@ def read_any(spark, path: str, delimiter: str | None = None, sheet: str | int | 
         return spark.read.option("multiLine", multiline).json(path), True
     if ext in PARQUET_EXT:
         return spark.read.parquet(path), True
+    if ext in GEOJSON_EXT:
+        return read_geojson(spark, path), False
 
     import pandas as pd
 
@@ -172,6 +175,19 @@ def read_any(spark, path: str, delimiter: str | None = None, sheet: str | int | 
     if ext in STATA_EXT:
         return _pandas_to_spark(spark, pd.read_stata(path, convert_categoricals=False)), False
     raise ValueError(f"Unsupported file type '.{ext}' for {path}")
+
+
+def read_geojson(spark, path: str):
+    """FeatureCollection -> one all-string row per feature (properties + `geometry` as GeoJSON text)."""
+    import json
+
+    import pandas as pd
+
+    with open(path, "r", encoding="utf-8") as fh:
+        fc = json.load(fh)
+    rows = [{**{k: v for k, v in (f.get("properties") or {}).items()}, "geometry": json.dumps(f.get("geometry"))}
+            for f in fc.get("features", [])]
+    return _pandas_to_spark(spark, pd.DataFrame(rows))
 
 
 def excel_sheets(path: str) -> list[str]:

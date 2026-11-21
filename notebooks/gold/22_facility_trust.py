@@ -18,6 +18,10 @@
 # MAGIC
 # MAGIC Strengths (several sources, beds and doctors listed, year established) are listed as **supporting
 # MAGIC facts**, and they are cited too, but they don't raise the score above 1.
+# MAGIC
+# MAGIC **Independent second source**: a facility that also appears in the government's National Health Portal
+# MAGIC hospital directory (gold/27) is not penalised for having few web sources, and the match is listed as a
+# MAGIC supporting fact. The directory confirms that the facility exists; it says nothing about its services.
 
 # COMMAND ----------
 
@@ -27,11 +31,13 @@
 
 import re
 
-from hc import care
+from hc import care, ext
 from hc.io import write_table
 
 S, G = cfg.silver, cfg.gold
 fm = spark.table(S("facility_master"))
+listed = spark.table(G("facility_external_matches")).select("facility_id", F.lit(True).alias("listed_in_directory"))
+fm = fm.join(listed, "facility_id", "left").withColumn("listed_in_directory", F.coalesce("listed_in_directory", F.lit(False)))
 P = care.TRUST_PENALTIES
 
 flags = {
@@ -42,8 +48,8 @@ flags = {
     "pin_coords_conflict": F.col("pin_distance_km") > care.PIN_COORD_CONFLICT_KM,
     "state_conflict": F.col("state_conflict"),
     "pin_not_found": F.col("pin").isNotNull() & ~F.col("pin_found"),
-    "single_source": F.col("n_sources") <= 1,
-    "few_sources": F.col("n_sources").between(2, 3),
+    "single_source": (F.col("n_sources") <= 1) & ~F.col("listed_in_directory"),
+    "few_sources": F.col("n_sources").between(2, 3) & ~F.col("listed_in_directory"),
     "possible_duplicate": F.col("dup_reason").isNotNull(),
     "beds_doctors_implausible": (F.col("capacity") >= 100) & (F.col("number_doctors") <= 2),
     "sparse_record": F.col("capacity").isNull() & F.col("number_doctors").isNull() & F.col("year_established").isNull() & (F.size("equipment") == 0),
@@ -71,6 +77,7 @@ for name, cond in flags.items():
     cautions.append(F.when(c, message(template)))
 
 supporting = [
+    F.when(F.col("listed_in_directory"), F.lit(ext.DIRECTORY_SUPPORTING_FACT)),
     F.when(F.col("n_sources") >= 4, F.format_string("Built from %d independent web sources.", "n_sources")),
     F.when(F.col("capacity").isNotNull(), F.format_string("Lists %d beds.", "capacity")),
     F.when(F.col("number_doctors").isNotNull(), F.format_string("Lists %d doctor(s).", "number_doctors")),
@@ -85,6 +92,7 @@ out = df.select(
     F.filter(F.array(*cautions), lambda x: x.isNotNull()).alias("cautions"),
     F.filter(F.array(*supporting), lambda x: x.isNotNull()).alias("supporting_facts"),
     *[f"flag_{n}" for n in flags],
+    F.col("listed_in_directory").alias("flag_listed_in_directory"),
 )
 write_table(out, G("facility_trust"))
 spark.sql(

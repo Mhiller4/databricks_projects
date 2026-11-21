@@ -98,6 +98,41 @@ def test_care_scoring_helpers():
     assert match_service("quantum healing") is None
 
 
+def test_directory_name_matching():
+    from hc.ext import names_match
+
+    assert names_match("Holy Spirit Hospital Andheri", "HOLY SPIRIT HOSPITAL")
+    assert names_match("Jyotipunj Hospital", "JYOTI PUNJ HOSPITAL")  # spacing differs
+    assert not names_match("City Hospital", "City Care Clinic")       # only a generic word in common
+    assert not names_match("Apollo Hospitals", "Fortis Hospital")
+    assert not names_match("Sai Eye Hospital", "Sai Krupa Hospital")
+
+
+def test_pmjay_mapping():
+    from hc.care import SERVICES_BY_KEY
+    from hc.ext import PMJAY_PROCEDURE_TO_SERVICE, PMJAY_SPECIALTY_TO_SERVICE, map_pmjay
+
+    cases = {
+        "Hemodialysis": "dialysis", "Caesarian Delivery": "emergency_c_section", "Caesarean Delivery": "emergency_c_section",
+        "Normal Vaginal Delivery": "maternity_delivery", "Phaco Emulsification With Foldable Hydrophobic Acrylic": "cataract_surgery",
+        "Ptca, Inclusive Of Diagnostic Angiogram": "cardiac_cath", "Magnetic Resonance Imaging (Mri)  Brain": "mri",
+        "Acute Respiratory Failure (Without Ventilator) 10 Days Stay": None, "Screening Test For Covid-19 Infection": None,
+    }
+    for name, want in cases.items():
+        assert map_pmjay(name) == want, (name, map_pmjay(name), want)
+    assert map_pmjay("Neo-natal care Packages", PMJAY_SPECIALTY_TO_SERVICE) == "nicu"
+    assert all(v in SERVICES_BY_KEY for _, v in PMJAY_PROCEDURE_TO_SERVICE + PMJAY_SPECIALTY_TO_SERVICE)
+
+
+def test_ihds_codes():
+    from hc import ihds
+    from hc.care import SERVICES_BY_KEY
+
+    assert ihds.FACILITY_TYPES[7][2] == "clinic" and ihds.FACILITY_TYPES[1][1] == "public"
+    assert all(k in SERVICES_BY_KEY for k in ihds.SERVICE_PROXIES)
+    assert all(v in ihds.SERVICES or v in ihds.EQUIPMENT for r in ihds.SERVICE_PROXIES.values() for v in r["all"])
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

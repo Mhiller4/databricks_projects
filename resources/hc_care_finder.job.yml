@@ -67,6 +67,40 @@ resources:
               layer: silver
               name_like: "{{job.parameters.table_prefix}}*"
 
+        # ---- external sources (files at the top of the landing volume) -> hc_bronze.ext_*
+        - task_key: ingest_external
+          depends_on: [{ task_key: setup }]
+          notebook_task:
+            notebook_path: ../notebooks/bronze/02_ingest_external_files.py
+
+        - task_key: profile_external
+          depends_on: [{ task_key: ingest_external }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: bronze
+              name_like: "ext_*"
+
+        - task_key: silver_hospital_directory
+          depends_on: [{ task_key: ingest_external }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/13_ext_hospital_directory.py
+
+        - task_key: silver_district_boundaries
+          depends_on: [{ task_key: ingest_external }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/14_district_boundaries.py
+
+        - task_key: silver_pmjay
+          depends_on: [{ task_key: ingest_external }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/15_ext_pmjay.py
+
+        - task_key: silver_ihds
+          depends_on: [{ task_key: ingest_external }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/16_ext_ihds.py
+
         # ---- Care Finder
         - task_key: facility_master
           depends_on: [{ task_key: clean_silver }]
@@ -83,8 +117,18 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/gold/21_service_evidence.py
 
+        - task_key: external_corroboration
+          depends_on: [{ task_key: facility_master }, { task_key: silver_hospital_directory }, { task_key: location_lookup }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/27_external_corroboration.py
+
+        - task_key: facility_districts
+          depends_on: [{ task_key: facility_master }, { task_key: silver_district_boundaries }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/26_facility_districts.py
+
         - task_key: facility_trust
-          depends_on: [{ task_key: facility_master }]
+          depends_on: [{ task_key: facility_master }, { task_key: external_corroboration }]
           notebook_task:
             notebook_path: ../notebooks/gold/22_facility_trust.py
 
@@ -92,6 +136,21 @@ resources:
           depends_on: [{ task_key: location_lookup }, { task_key: service_evidence }, { task_key: facility_trust }]
           notebook_task:
             notebook_path: ../notebooks/gold/23_care_finder_index.py
+
+        - task_key: district_coverage
+          depends_on: [{ task_key: index_and_functions }, { task_key: facility_districts }, { task_key: external_corroboration }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/28_district_coverage.py
+
+        - task_key: pmjay_demand
+          depends_on: [{ task_key: index_and_functions }, { task_key: silver_pmjay }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/29_pmjay_demand.py
+
+        - task_key: ihds_base_rates
+          depends_on: [{ task_key: silver_ihds }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/31_ihds_base_rates.py
 
         - task_key: export_serving
           depends_on: [{ task_key: index_and_functions }]
