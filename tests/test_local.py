@@ -63,6 +63,58 @@ def test_identifier_regex():
         assert not is_identifier_like(c), c
 
 
+def test_care_service_patterns():
+    import re
+
+    from hc.care import QUANTITY_PATTERN, SERVICES_BY_KEY, THIRD_PARTY_PATTERN
+
+    cases = {
+        "dialysis": (["20-bed Dialysis Unit with 10 machines", "Haemodialysis available 24x7", "CAPD program"],
+                     ["Nephrology OPD on Mondays", "dialyzer reuse policy"]),
+        "emergency_c_section": (["Emergency caesarean sections performed round the clock", "LSCS and normal deliveries",
+                                 "Handles high-risk pregnancies", "C-section"], ["Section of general surgery"]),
+        "nicu": (["Level III NICU with 12 incubators", "Neonatal intensive care unit", "SNCU"], ["Neonatal jaundice clinic"]),
+        "icu": (["10-bed ICU", "Critical care with ventilators"], ["Picnic area for families"]),
+        "trauma_care": (["Level 1 trauma centre", "Accident & Emergency services", "Casualty"], ["Trauma counselling" ]),
+        "emergency_department": (["24x7 emergency", "24 hours emergency services", "Emergency department"], ["Emergency contact number"]),
+        "burn_care": (["Burns unit with 8 beds", "burn injuries treated"], ["Fat burning program"]),
+        "cardiac_surgery": (["CABG and valve replacement", "Open-heart surgery", "Cardiothoracic surgery"], ["Cardiology OPD"]),
+        "cardiac_cath": (["Cath lab with primary angioplasty", "PTCA"], ["Cathedral road"]),
+        "mri": (["1.5 Tesla MRI", "Magnetic resonance imaging"], ["Primary care", "Mrinal Sen ward"]),
+        "ct_scan": (["128 slice CT", "CT scan available", "HRCT chest"], ["Act on patient rights", "OCT imaging"]),
+        "blood_bank": (["Licensed blood bank", "Blood transfusion services"], ["Blood pressure monitoring"]),
+        "chemotherapy": (["Chemotherapy day care", "Medical oncology"], ["Oncology awareness camp"]),
+        "radiotherapy": (["Elekta linear accelerator", "Brachytherapy suite"], ["Radiology department"]),
+        "cataract_surgery": (["Phacoemulsification cataract surgery"], ["Retina clinic"]),
+    }
+    for k, (pos, neg) in cases.items():
+        rx = re.compile(SERVICES_BY_KEY[k].pattern)
+        for t in pos:
+            assert rx.search(t.lower()), (k, "should match", t)
+        for t in neg:
+            assert not rx.search(t.lower()), (k, "should NOT match", t)
+    assert re.search(THIRD_PARTY_PATTERN, "madras medical mission is listed as a referral hospital outside the state.")
+    assert not re.search(THIRD_PARTY_PATTERN, "20-bed dialysis unit with 10 machines")
+    assert re.search(QUANTITY_PATTERN, "20-bed dialysis unit with 10 machines")
+    assert re.search(QUANTITY_PATTERN, "level iii nicu with 12 incubators")
+
+
+def test_care_scoring_helpers():
+    from hc.care import confidence, key, match_service, noisy_or
+
+    assert abs(noisy_or([0.6, 0.5]) - 0.8) < 1e-9
+    assert confidence(0.8, 0.9, 1.0) == "High"
+    assert confidence(0.8, 0.6, 1.0) == "Medium"
+    assert confidence(0.15, 1.0, 1.0) == "Low"
+    assert confidence(0.97, 0.6, 0.4) == "Low"  # eye hospital claiming dialysis
+    assert key("Tamil Nadu") == key("TAMILNADU") == "TAMILNADU"
+    assert match_service("Dialysis").service.key == "dialysis"
+    assert match_service("kidney machine").service.key == "dialysis"
+    assert match_service("c section").service.key == "emergency_c_section"
+    assert match_service("NICU").service.key == "nicu"
+    assert match_service("quantum healing") is None
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

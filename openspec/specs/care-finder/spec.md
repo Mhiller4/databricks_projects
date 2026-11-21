@@ -103,17 +103,17 @@ within the Free Edition app and warehouse limits.
 ## Proposed approach (to confirm)
 
 1. **Bronze:** copy the shared tables unchanged. **Done.**
-2. **Silver:** clean the tables; flag shifted-column rows; standardize states; validate PIN, coordinates and state against the India Post directory. **Partly done.**
-3. **Gold `facility_service_evidence`:** one row per facility × canonical service. Each row holds:
+2. **Silver:** clean the tables; flag shifted-column rows; standardize states; validate PIN, coordinates and state against the India Post directory. **Done:** `hc_silver.facility_master`. When the coordinates and the PIN disagree by more than 50 km, the listed city breaks the tie.
+3. **Gold `facility_service_evidence`:** **done**. One row per facility × canonical service. Each row holds:
    - the matched text snippets, each with its source field
    - an evidence tier: direct procedure or equipment > capability > specialty only > description only
    - corroboration: how many fields and sources agree
-4. **Gold `facility_trust`:** per-facility trust flags covering:
+4. **Gold `facility_trust`:** **done**. Per-facility trust flags covering:
    - location conflicts
    - merged-record signals (several facility names inside one record, or a service that doesn't fit the facility type)
    - completeness
    - number of sources
-5. **Scoring:** `score = evidence × trust × distance decay`, with the weights shown in the interface.
+5. **Scoring:** **done**, in `care_finder_index` + `recommend_facilities()` + `resolve_location()`. `score = evidence × type fit × trust × exp(−km / tau)`; the weights are in `src/hc/care.py` and `gold.service_catalog`.
    A model (e.g. one that predicts whether a claim is corroborated) could come later, if time allows.
 6. **Interface:** a Databricks App for the health-worker workflow, possibly with a Genie space for planners'
    open questions. Optionally an LLM (`ai_query`) to map free-text services and write the explanation.

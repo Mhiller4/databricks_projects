@@ -24,6 +24,29 @@ The share is `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_d
 `databricks jobs run-now` on `hc_kickoff` with job parameters `table_prefix=vf_` and
 `source_tables=<the three full table names>`; the exact command is in [docs/KICKOFF_RUNBOOK.md](docs/KICKOFF_RUNBOOK.md).
 
+### Care Finder gold layer (built Sat Nov 21)
+
+`databricks bundle run hc_care_finder -t free --profile <p>` rebuilds everything (about 5 minutes). Rules
+and weights are in [`src/hc/care.py`](src/hc/care.py).
+
+```sql
+SELECT * FROM workspace.hc_gold.resolve_location('Darbhanga, Bihar');          -- or a PIN, or 'lat, lon'
+SELECT * FROM workspace.hc_gold.recommend_facilities('dialysis', 26.13, 85.90); -- ranked, with why / evidence / cautions
+```
+
+| Table | Grain | What it holds |
+|---|---|---|
+| `hc_silver.facility_master` | facility | canonical state, location (with a tie-break when coordinates and PIN disagree), parsed claim lists, flags |
+| `hc_gold.location_lookup` | place name | PIN / city / district / post office / state → median point |
+| `hc_gold.service_catalog` | service | 16 services: match pattern, related specialties, travel distance |
+| `hc_gold.facility_evidence_snippets` | facility × service × claim | **citations**: the exact text and its source field |
+| `hc_gold.facility_service_evidence` | facility × service | evidence score, fields that agree, top 3 citations, type fit |
+| `hc_gold.facility_trust` | facility | trust score, plain-language cautions, supporting facts |
+| `hc_gold.care_finder_index` | facility × service | all of the above plus confidence and the explanation |
+
+**Score** = evidence × type fit × record trust × exp(−km / service travel distance). **Confidence**
+(High / Medium / Low) ignores distance, so a far facility can still be well evidenced.
+
 > The US public-data pipeline below (`hc_public_sources` → `county_context`) was built before kickoff.
 > It covers US counties, so it isn't part of the India submission. It still works, but it's parked.
 > The generic pieces (bronze/silver ingestion, DQ profiling, the auto-cleaner, the model template) carry over.
