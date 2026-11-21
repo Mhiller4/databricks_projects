@@ -43,7 +43,7 @@ SUPPRESSION_TOKENS = [
     "<11", "< 11", "<20", "1-9", "1 - 9", "†", "‡",
 ]
 _ID_RE = re.compile(
-    r"(^|_)(id|ids|key|uuid|guid|code|codes|cd|fips|geoid|zip|zipcode|zcta|zcta5|postal|npi|ccn|"
+    r"(^|_)(id|ids|key|uuid|guid|code|codes|cd|fips|geoid|zip|zipcode|zcta|zcta5|postal|postcode|pin|pincode|npi|ccn|"
     r"tin|ein|phone|fax|tel|ssn|mrn|icd|icd9|icd10|cpt|hcpcs|ndc|drg|msdrg|loinc|snomed|rxcui|"
     r"provider_number|facility_id|account|acct|claim)(\d*)($|_)"
 )
@@ -257,9 +257,21 @@ def clean_dataframe(df: DataFrame, overrides: dict | None = None, sample_rows: i
             fn = geo.state_fips2 if is_state or (stats.get(c, {}).get("maxlen", 5) or 5) <= 2 else geo.fips5
             df = df.withColumn(c, fn(F.col(c)))
             note(c, "standardized_fips", "zero-padded to 2 (state) or 5 (county) digits")
-        elif re.search(r"(^|_)(zip|zipcode|zip_code|postal_code|zcta|zcta5)($|_)", lc):
-            df = df.withColumn(c, geo.zip5(F.col(c)))
-            note(c, "standardized_zip", "trimmed to 5-digit ZIP, leading zeros restored")
+        elif re.search(r"(^|_)(zip|zipcode|zip_code|postal_code|postcode|zcta|zcta5|pin|pincode|pin_code)($|_)", lc):
+            # Decide by the values, not the name: a 'postcode' can be a US ZIP or a 6-digit Indian PIN.
+            v = F.regexp_replace(F.trim(F.col(c).cast("string")), r"\.0+$", "")
+            shares = df.select(
+                F.avg(F.when(v.isNotNull(), v.rlike(r"^\d{3,5}(-?\d{4})?$").cast("int"))).alias("us"),
+                F.avg(F.when(v.isNotNull(), F.regexp_replace(v, r"\s", "").rlike(r"^[1-9]\d{5}$").cast("int"))).alias("pin"),
+            ).first()
+            if (shares["pin"] or 0) >= 0.8:
+                df = df.withColumn(c, geo.pin6(F.col(c)))
+                note(c, "standardized_pin", f"{shares['pin']:.1%} look like 6-digit Indian PIN codes; spaces removed, invalid -> NULL")
+            elif (shares["us"] or 0) >= 0.8:
+                df = df.withColumn(c, geo.zip5(F.col(c)))
+                note(c, "standardized_zip", "trimmed to 5-digit ZIP, leading zeros restored")
+            else:
+                note(c, "kept_postcode_as_is", f"mixed formats (US-like {shares['us'] or 0:.0%}, PIN-like {shares['pin'] or 0:.0%})")
 
     # 6. drop all-null columns
     if o.get("drop_empty_columns", True):

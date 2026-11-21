@@ -35,6 +35,12 @@ def zip5(col: Column) -> Column:
     return F.when(first != "", F.lpad(first, 5, "0"))
 
 
+def pin6(col: Column) -> Column:
+    """Indian PIN code: '110 002', '110002.0' -> '110002'; anything not 6 digits starting 1-9 -> NULL."""
+    c = F.regexp_replace(F.regexp_replace(F.trim(col.cast("string")), r"\.0+$", ""), r"\s", "")
+    return F.when(c.rlike(r"^[1-9][0-9]{5}$"), c)
+
+
 def county_key(col: Column) -> Column:
     """Normalized county name for fuzzy-ish joins: 'St. Mary's Parish' -> 'STMARYS'.
     Keeps the word CITY so 'Baltimore city' and 'Baltimore County' stay distinct."""

@@ -6,7 +6,24 @@
 - [ ] `SELECT count(*) FROM workspace.hc_gold.county_context` returns ~3,144
 - [ ] Glance at `hc_gold.dq_table_summary` to see the bronze vs silver numbers
 
-## Hour 0-1: land the data
+## Kickoff status (Sat Nov 21)
+
+The challenge is Care Finder (see [CHALLENGE.md](CHALLENGE.md)). The data arrived as a Delta Share and
+is already in bronze and silver as `vf_*`. To reload it:
+
+```bash
+C=databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset
+databricks jobs run-now --profile <p> --json "{\"job_id\": <hc_kickoff job id>, \"job_parameters\": {\"table_prefix\": \"vf_\",
+  \"source_tables\": \"$C.facilities,$C.india_post_pincode_directory,$C.nfhs_5_district_health_indicators\"}}"
+```
+
+(`bundle run --params` can't pass a list that contains commas, so use `jobs run-now --json`. To find the
+job id, run `databricks bundle summary -t free`.)
+
+Next: silver fixes for facilities (states, shifted rows, PIN/coordinate checks), then gold
+`facility_service_evidence` and `facility_trust` (see the spec's proposed approach).
+
+## Hour 0-1: land the data (generic, for file drops)
 1. Download whatever the organizers give us.
 2. Upload it to `/Volumes/workspace/hc_bronze/landing/kickoff/` (Catalog Explorer → volume → Upload,
    or `databricks fs cp -r ./kickoff dbfs:/Volumes/workspace/hc_bronze/landing/kickoff --profile <p>`).

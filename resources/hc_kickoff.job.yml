@@ -25,6 +25,10 @@ resources:
           default: kickoff_
         - name: overrides_json
           default: "{}"
+        - name: source_tables
+          default: ""   # comma list of existing tables (e.g. a Delta Share) to copy instead of landing files
+        - name: subfolder
+          default: kickoff
 
       tasks:
         - task_key: setup
@@ -42,7 +46,7 @@ resources:
             notebook_path: ../notebooks/silver/10_profile_tables.py
             base_parameters:
               layer: bronze
-              name_like: kickoff_*
+              name_like: "{{job.parameters.table_prefix}}*"
 
         - task_key: clean_silver
           depends_on: [{ task_key: ingest_bronze }]
@@ -55,4 +59,4 @@ resources:
             notebook_path: ../notebooks/silver/10_profile_tables.py
             base_parameters:
               layer: silver
-              name_like: kickoff_*
+              name_like: "{{job.parameters.table_prefix}}*"

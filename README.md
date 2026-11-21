@@ -1,9 +1,36 @@
-# Healthcare Datathon: Databricks pipeline
+# Care Finder: find the right care in India
 
-> Turn messy healthcare data into decisions that save lives.
-> Team: Mekeli + Bryce · Submission due Sun Nov 22, 12:30 PM
+> A patient needs a specific kind of care. Where should they go, and why should they trust that answer?
+> CMU Datathon Fall 2026 · Virtue Foundation dataset · Team: Mekeli + Bryce · Due Sun Nov 22, 12:30 PM
 
-A medallion pipeline that is ready **before** we see the organizers' data:
+**The challenge:** take a **service** (dialysis, emergency C-section, NICU, MRI, ...) and a **location**
+(city, district, PIN code, or coordinates). Return the best facilities, each with **cited evidence** from
+the facility text and an honest **confidence level**. The data is about 10,000 Indian facility records
+extracted from web text, so every field is a claim to verify. The tool must run on Databricks Free
+Edition and work for non-technical users such as community health workers and NGO coordinators.
+
+* Full brief, requirements checklist and data findings: [docs/CHALLENGE.md](docs/CHALLENGE.md)
+* Product requirements: [openspec/specs/care-finder/spec.md](openspec/specs/care-finder/spec.md)
+
+### Challenge data in this workspace
+
+| Delta Share table | Bronze (as received) | Silver (cleaned) |
+|---|---|---|
+| `facilities` (10,088) | `hc_bronze.vf_facilities` | `hc_silver.vf_facilities` (10,077, exact duplicates removed) |
+| `india_post_pincode_directory` (165,627) | `hc_bronze.vf_india_post_pincode_directory` | `hc_silver.vf_india_post_pincode_directory` |
+| `nfhs_5_district_health_indicators` (706) | `hc_bronze.vf_nfhs_5_district_health_indicators` | `hc_silver.vf_nfhs_5_district_health_indicators` |
+
+The share is `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset`. To reload it, use
+`databricks jobs run-now` on `hc_kickoff` with job parameters `table_prefix=vf_` and
+`source_tables=<the three full table names>`; the exact command is in [docs/KICKOFF_RUNBOOK.md](docs/KICKOFF_RUNBOOK.md).
+
+> The US public-data pipeline below (`hc_public_sources` → `county_context`) was built before kickoff.
+> It covers US counties, so it isn't part of the India submission. It still works, but it's parked.
+> The generic pieces (bronze/silver ingestion, DQ profiling, the auto-cleaner, the model template) carry over.
+
+## Pipeline
+
+A medallion pipeline built before we saw the organizers' data:
 
 * **Public context, pre-built:** 8 free federal datasets cleaned and joined into `hc_gold.county_context`
   (one row per US county, ~120 columns).
