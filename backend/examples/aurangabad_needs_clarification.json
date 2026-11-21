@@ -1,0 +1,28 @@
+{
+  "request": {
+    "service": "dialysis",
+    "location": "Aurangabad"
+  },
+  "response": {
+    "status": "needs_clarification",
+    "message": "'Aurangabad' matches places in 2 states. Which one?",
+    "spoken_summary": "'Aurangabad' matches places in 2 states. Which one?",
+    "options": [
+      {
+        "display_name": "Aurangabad, Maharashtra",
+        "state": "Maharashtra",
+        "query": "Aurangabad, Maharashtra"
+      },
+      {
+        "display_name": "Aurangabad, Bihar",
+        "state": "Bihar",
+        "query": "Aurangabad, Bihar"
+      }
+    ],
+    "query": {
+      "service": "dialysis",
+      "location": "Aurangabad",
+      "urgency": "routine"
+    }
+  }
+}

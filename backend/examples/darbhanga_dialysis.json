@@ -1,0 +1,1183 @@
+{
+  "request": {
+    "service": "dialysis",
+    "location": "Darbhanga, Bihar"
+  },
+  "response": {
+    "status": "ok",
+    "query": {
+      "service": {
+        "input": "dialysis",
+        "key": "dialysis",
+        "label": "Dialysis",
+        "matched_by": "label",
+        "alternatives": [],
+        "tau_km": 30
+      },
+      "location": {
+        "input": "Darbhanga, Bihar",
+        "kind": "city",
+        "display_name": "Darbhanga, Bihar",
+        "district": "Darbhanga",
+        "state": "Bihar",
+        "lat": 26.12761,
+        "lon": 85.89751,
+        "alternatives": [
+          "Darbhanga district, Bihar",
+          "Darbhanga (post office), Darbhanga district, Bihar"
+        ]
+      },
+      "urgency": "routine",
+      "weights": {
+        "proximity": 0.35,
+        "evidence": 0.3,
+        "trust": 0.2,
+        "depth": 0.15
+      },
+      "radius_km": 90.0
+    },
+    "method": {
+      "gates": [
+        "Direct evidence: the service is named in the facility's own procedure, equipment, capability or description text",
+        "The matching text is not only a listing about another hospital",
+        "Record trust ≥ 0.5 (penalties for location conflicts, thin sources, merged records)",
+        "Facility type fit ≥ 0.5 (a dental clinic offering a NICU fails)",
+        "Within 90 km (τ 30 km × 3 for routine)"
+      ],
+      "score": "Σ weight × component over facilities that pass every gate",
+      "confidence_rules": [
+        {
+          "level": "High",
+          "rule": "evidence >= 0.75 (two or more independent fields agree), trust >= 0.75 and the facility type fits"
+        },
+        {
+          "level": "Medium",
+          "rule": "evidence >= 0.5, trust >= 0.5 and the facility type plausibly fits (type_fit >= 0.5)"
+        },
+        {
+          "level": "Low",
+          "rule": "anything else, including specialty-only (indirect) evidence"
+        }
+      ]
+    },
+    "funnel": [
+      {
+        "stage": "Facility records received",
+        "count": 10088
+      },
+      {
+        "stage": "After removing exact duplicates",
+        "count": 10077
+      },
+      {
+        "stage": "Well-formed, with a usable location",
+        "count": 9698
+      },
+      {
+        "stage": "Mention dialysis anywhere (incl. related specialty)",
+        "count": 2293
+      },
+      {
+        "stage": "Within 90 km of Darbhanga, Bihar",
+        "count": 18
+      },
+      {
+        "stage": "Direct evidence in their own text",
+        "count": 9
+      },
+      {
+        "stage": "Record trust ≥ 0.5 and facility type fits",
+        "count": 9
+      },
+      {
+        "stage": "Recommended",
+        "count": 3
+      }
+    ],
+    "recommendations": [
+      {
+        "tier": "best_balanced",
+        "tier_label": "Best balanced",
+        "tier_reason": "Highest overall score: evidence, trust, depth and distance together.",
+        "facility_id": "5e0b96cf-e221-4e1f-bd1f-e9b49d3eca7e",
+        "name": "R. B. Memorial Hospital",
+        "facility_type": "hospital",
+        "address": "Vip Road, Beta, Laheriasarai, Darbhanga, Bihar, 846003",
+        "city": "Darbhanga",
+        "district": "Darbhanga",
+        "state": "Bihar",
+        "pin": "846003",
+        "phone": "+916272233684",
+        "website": "https://www.diagnum.com/en/our-footprint/diagnum-healthcare-darbhanga",
+        "lat": 26.127275466918945,
+        "lon": 85.90380859375,
+        "distance_km": 0.6,
+        "score": 0.7701,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.83 from 2 independent field(s), record trust 0.80, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, procedure (2 matching claims).",
+          "0.6 km away (location from listed coordinates).",
+          "Built from 23 independent web sources.",
+          "Established 2005.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.9802,
+            "evidence": 0.83,
+            "trust": 0.8,
+            "depth": 0.12
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.3431,
+            "evidence": 0.249,
+            "trust": 0.16,
+            "depth": 0.018
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.83,
+            "type_fit": 1.0,
+            "trust_score": 0.8,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Dialysis procedures are offered at R. B. Memorial Hospital",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "capability",
+            "text": "Dialysis service",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.diagnum.com/en/our-footprint/diagnum-healthcare-darbhanga",
+          "https://www.facebook.com/105687130824549",
+          "https://www.lybrate.com/darbhanga/doctor/dr-ashutosh-kumar-pediatrician-2",
+          "https://www.facebook.com/1131811396982484",
+          "https://www.facebook.com/220440278733156"
+        ],
+        "cautions": [
+          "Listed coordinates are 81.5 km from the PIN code's area (city agrees with coordinates); the location we used may still be off."
+        ],
+        "call_ahead": [
+          "Listed coordinates are 81.5 km from the PIN code's area (city agrees with coordinates); the location we used may still be off."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": "nearest_verified",
+        "tier_label": "Nearest verified",
+        "tier_reason": "The closest facility that passes every check, with Medium or High confidence if one exists.",
+        "facility_id": "7ada90ef-2c08-442f-ad2f-283360f27582",
+        "name": "Dr. Global Healthcare & Diabetes Centre (Dr. Naween Kumar)",
+        "facility_type": "hospital",
+        "address": "Near Jesus & Mary Academy, Banker's Colony, Rahamganj, Darbhanga, Bihar, 846004",
+        "city": "Darbhanga",
+        "district": "Darbhanga",
+        "state": "Bihar",
+        "pin": "846004",
+        "phone": "+917004545746",
+        "website": "globaldiabetescare.com",
+        "lat": 26.162696838378906,
+        "lon": 85.89750671386719,
+        "distance_km": 3.9,
+        "score": 0.7143,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's equipment (1 matching claim).",
+          "3.9 km away (location from listed coordinates).",
+          "Built from 4 independent web sources.",
+          "Coordinates match the PIN code area.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.8781,
+            "evidence": 0.66,
+            "trust": 1.0,
+            "depth": 0.06
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.3073,
+            "evidence": 0.198,
+            "trust": 0.2,
+            "depth": 0.009
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "equipment"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "equipment",
+            "text": "Dialysis facility",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.cardiologistindia.com/bihar/darbhanga/global-healthcare-diabetes-centre-dr-naween-kumar.html",
+          "https://www.facebook.com/globaldiabetescare/",
+          "https://www.facebook.com/globaldiabetescare/posts/prevent-complications-and-live-a-healthy-life-with-our-specialized-diabetes-care/1387123943419767/",
+          "https://www.facebook.com/267266183942705"
+        ],
+        "cautions": [
+          "Only one field (equipment) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (equipment) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": "highest_confidence",
+        "tier_label": "Highest-confidence specialist",
+        "tier_reason": "The strongest evidence and record trust within the search radius, regardless of distance.",
+        "facility_id": "846902e8-a53b-42af-bc3c-e729cdc31931",
+        "name": "New B K Hospital",
+        "facility_type": "hospital",
+        "address": "Gandak Pul Road, Ghandhi Chowk, Near Sbi Bank, Jauhari Bazar, Hajipur, Bihar, 844101",
+        "city": "Hajipur",
+        "district": "Vaishali",
+        "state": "Bihar",
+        "pin": "844101",
+        "phone": "+919097333335",
+        "website": "newbkhospital.com",
+        "lat": 25.691383361816406,
+        "lon": 85.20686340332031,
+        "distance_km": 84.4,
+        "score": 0.6136,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.93 from 3 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, equipment, procedure (5 matching claims).",
+          "84.4 km away (location from listed coordinates).",
+          "Built from 12 independent web sources.",
+          "Lists 50 beds.",
+          "Lists 5 doctor(s)."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.06,
+            "evidence": 0.932,
+            "trust": 1.0,
+            "depth": 0.753
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.021,
+            "evidence": 0.2796,
+            "trust": 0.2,
+            "depth": 0.1129
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.932,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "equipment",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Dialysis",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "procedure",
+            "text": "Provides dialysis.",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "equipment",
+            "text": "Dialysis equipment for kidney treatment.",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.justdial.com/Hajipur/Dr-S-K-Verma-New-B-K-Hospital-Near-Sbi-Bank-Jauhari-Bazar-Ghandhi-Chowk/9999P6225-6225-240116231544-A5N4_BZDET",
+          "https://www.hexahealth.com/hospitals/insurance/ayushman-bharat-hospitals-list-in-vaishali",
+          "https://myhospitalnow.com/hospitals/new-b-k-hospital",
+          "https://www.justdial.com/Hajipur/New-B-K-Hospital-Near-Sbi-Bank-Jauhari-Bazar-Konahara-Ghat-Road/9999PX624-X624-131226161009-P3P5_BZDET",
+          "https://www.facebook.com/876365086041230"
+        ],
+        "cautions": [],
+        "call_ahead": [],
+        "model_drivers": null
+      }
+    ],
+    "nearest_beyond_radius": [],
+    "ranked": [
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "5e0b96cf-e221-4e1f-bd1f-e9b49d3eca7e",
+        "name": "R. B. Memorial Hospital",
+        "facility_type": "hospital",
+        "address": "Vip Road, Beta, Laheriasarai, Darbhanga, Bihar, 846003",
+        "city": "Darbhanga",
+        "district": "Darbhanga",
+        "state": "Bihar",
+        "pin": "846003",
+        "phone": "+916272233684",
+        "website": "https://www.diagnum.com/en/our-footprint/diagnum-healthcare-darbhanga",
+        "lat": 26.127275466918945,
+        "lon": 85.90380859375,
+        "distance_km": 0.6,
+        "score": 0.7701,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.83 from 2 independent field(s), record trust 0.80, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, procedure (2 matching claims).",
+          "0.6 km away (location from listed coordinates).",
+          "Built from 23 independent web sources.",
+          "Established 2005.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.9802,
+            "evidence": 0.83,
+            "trust": 0.8,
+            "depth": 0.12
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.3431,
+            "evidence": 0.249,
+            "trust": 0.16,
+            "depth": 0.018
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.83,
+            "type_fit": 1.0,
+            "trust_score": 0.8,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Dialysis procedures are offered at R. B. Memorial Hospital",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "capability",
+            "text": "Dialysis service",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.diagnum.com/en/our-footprint/diagnum-healthcare-darbhanga",
+          "https://www.facebook.com/105687130824549",
+          "https://www.lybrate.com/darbhanga/doctor/dr-ashutosh-kumar-pediatrician-2",
+          "https://www.facebook.com/1131811396982484",
+          "https://www.facebook.com/220440278733156"
+        ],
+        "cautions": [
+          "Listed coordinates are 81.5 km from the PIN code's area (city agrees with coordinates); the location we used may still be off."
+        ],
+        "call_ahead": [
+          "Listed coordinates are 81.5 km from the PIN code's area (city agrees with coordinates); the location we used may still be off."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "7ada90ef-2c08-442f-ad2f-283360f27582",
+        "name": "Dr. Global Healthcare & Diabetes Centre (Dr. Naween Kumar)",
+        "facility_type": "hospital",
+        "address": "Near Jesus & Mary Academy, Banker's Colony, Rahamganj, Darbhanga, Bihar, 846004",
+        "city": "Darbhanga",
+        "district": "Darbhanga",
+        "state": "Bihar",
+        "pin": "846004",
+        "phone": "+917004545746",
+        "website": "globaldiabetescare.com",
+        "lat": 26.162696838378906,
+        "lon": 85.89750671386719,
+        "distance_km": 3.9,
+        "score": 0.7143,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's equipment (1 matching claim).",
+          "3.9 km away (location from listed coordinates).",
+          "Built from 4 independent web sources.",
+          "Coordinates match the PIN code area.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.8781,
+            "evidence": 0.66,
+            "trust": 1.0,
+            "depth": 0.06
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.3073,
+            "evidence": 0.198,
+            "trust": 0.2,
+            "depth": 0.009
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "equipment"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "equipment",
+            "text": "Dialysis facility",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.cardiologistindia.com/bihar/darbhanga/global-healthcare-diabetes-centre-dr-naween-kumar.html",
+          "https://www.facebook.com/globaldiabetescare/",
+          "https://www.facebook.com/globaldiabetescare/posts/prevent-complications-and-live-a-healthy-life-with-our-specialized-diabetes-care/1387123943419767/",
+          "https://www.facebook.com/267266183942705"
+        ],
+        "cautions": [
+          "Only one field (equipment) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (equipment) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "846902e8-a53b-42af-bc3c-e729cdc31931",
+        "name": "New B K Hospital",
+        "facility_type": "hospital",
+        "address": "Gandak Pul Road, Ghandhi Chowk, Near Sbi Bank, Jauhari Bazar, Hajipur, Bihar, 844101",
+        "city": "Hajipur",
+        "district": "Vaishali",
+        "state": "Bihar",
+        "pin": "844101",
+        "phone": "+919097333335",
+        "website": "newbkhospital.com",
+        "lat": 25.691383361816406,
+        "lon": 85.20686340332031,
+        "distance_km": 84.4,
+        "score": 0.6136,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.93 from 3 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, equipment, procedure (5 matching claims).",
+          "84.4 km away (location from listed coordinates).",
+          "Built from 12 independent web sources.",
+          "Lists 50 beds.",
+          "Lists 5 doctor(s)."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.06,
+            "evidence": 0.932,
+            "trust": 1.0,
+            "depth": 0.753
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.021,
+            "evidence": 0.2796,
+            "trust": 0.2,
+            "depth": 0.1129
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.932,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "equipment",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Dialysis",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "procedure",
+            "text": "Provides dialysis.",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "equipment",
+            "text": "Dialysis equipment for kidney treatment.",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.justdial.com/Hajipur/Dr-S-K-Verma-New-B-K-Hospital-Near-Sbi-Bank-Jauhari-Bazar-Ghandhi-Chowk/9999P6225-6225-240116231544-A5N4_BZDET",
+          "https://www.hexahealth.com/hospitals/insurance/ayushman-bharat-hospitals-list-in-vaishali",
+          "https://myhospitalnow.com/hospitals/new-b-k-hospital",
+          "https://www.justdial.com/Hajipur/New-B-K-Hospital-Near-Sbi-Bank-Jauhari-Bazar-Konahara-Ghat-Road/9999PX624-X624-131226161009-P3P5_BZDET",
+          "https://www.facebook.com/876365086041230"
+        ],
+        "cautions": [],
+        "call_ahead": [],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "61731339-a1d6-4384-92ee-fce2d11b3338",
+        "name": "Sub Divisional Hospital Pusa",
+        "facility_type": "hospital",
+        "address": "Ara Mohania Road, Utarwarijangalmahaljagdishpur, Rau Pusa, Bihar, 848125",
+        "city": "Rau Pusa",
+        "district": "Samastipur",
+        "state": "Bihar",
+        "pin": "848125",
+        "phone": "+916181292056",
+        "website": "http://www.onefivenine.com/india/Listing/Town/hospitals/Samastipur/Pusa",
+        "lat": 25.862968,
+        "lon": 85.781026,
+        "distance_km": 31.6,
+        "score": 0.5921,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 0.80, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's procedure (2 matching claims).",
+          "31.6 km away (location from PIN code area (listed coordinates disagree)).",
+          "Built from 30 independent web sources.",
+          "Lists 75 beds.",
+          "Lists 33 doctor(s)."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.3488,
+            "evidence": 0.66,
+            "trust": 0.8,
+            "depth": 0.747
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.1221,
+            "evidence": 0.198,
+            "trust": 0.16,
+            "depth": 0.112
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 0.8,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Advanced Kidney Dialysis",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "procedure",
+            "text": "Haemodialysis - Peritoneal Dialysis",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "http://www.onefivenine.com/india/Listing/Town/hospitals/Samastipur/Pusa",
+          "https://ayushmancardhospitals.com/rh-phulwaria-gopalganj-bihar/",
+          "http://www.onefivenine.com/india/Listing/Town/hospitals/Bhojpur/Jagdishpur",
+          "http://www.onefivenine.com/india/city/Behea",
+          "https://www.justdial.com/Samastipur/Sub-Divisional-Hospital-Near-Rajendra-Agriculture-University-Pusa-Bishanpur-Bathua/9999P6274-6274-230528192611-X2T4_BZDET"
+        ],
+        "cautions": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record.",
+          "Listed coordinates are 79.2 km from the PIN code's area (no city reference: PIN preferred); the location we used may still be off."
+        ],
+        "call_ahead": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record.",
+          "Listed coordinates are 79.2 km from the PIN code's area (no city reference: PIN preferred); the location we used may still be off."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "2dccd2d1-a1e2-443f-91b8-34452bb60e69",
+        "name": "Phular Superspeciality Hospital, Road No-02, Juran Chappra, Muzaffarpur - 842001",
+        "facility_type": "hospital",
+        "address": "Road No-02, Juran Chappra, Muzaffarpur, Bihar, 842001",
+        "city": "Muzaffarpur",
+        "district": "Muzaffarpur",
+        "state": "Bihar",
+        "pin": "842001",
+        "phone": "+916212271151",
+        "website": "phularhospital.com",
+        "lat": 26.129085540771484,
+        "lon": 85.37548828125,
+        "distance_km": 52.1,
+        "score": 0.5808,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.83 from 2 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, procedure (2 matching claims).",
+          "52.1 km away (location from listed coordinates).",
+          "Built from 7 independent web sources.",
+          "Lists 100 beds.",
+          "Established 2022."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.1761,
+            "evidence": 0.83,
+            "trust": 1.0,
+            "depth": 0.468
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.0616,
+            "evidence": 0.249,
+            "trust": 0.2,
+            "depth": 0.0702
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.83,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Dialysis treatment is provided",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "capability",
+            "text": "Dialysis program is offered",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.phularhospital.com/Doctors.aspx",
+          "http://www.phularhospital.com/",
+          "https://www.phularhospital.com/About.aspx",
+          "https://chotu.com/local/dental-clinics-in-muzaffarpur-bihar-india/ct-18418495/",
+          "https://www.facebook.com/phularsuperspecialityhospital/"
+        ],
+        "cautions": [],
+        "call_ahead": [],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "d3725c9b-4b58-4dae-a70c-9d8847ab406d",
+        "name": "Prasad Hospital",
+        "facility_type": "hospital",
+        "address": "Prasad Hospital, Brahmpura, Muzaffarpur, Bihar, 842003",
+        "city": "Muzaffarpur",
+        "district": "Muzaffarpur",
+        "state": "Bihar",
+        "pin": "842003",
+        "phone": "+919570996625",
+        "website": "prasadhospital.org",
+        "lat": 26.134496688842773,
+        "lon": 85.36515808105469,
+        "distance_km": 53.1,
+        "score": 0.5214,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's procedure (1 matching claim).",
+          "53.1 km away (location from listed coordinates).",
+          "Built from 14 independent web sources.",
+          "Lists 125 beds.",
+          "Established 2014."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.1703,
+            "evidence": 0.66,
+            "trust": 1.0,
+            "depth": 0.425
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.0596,
+            "evidence": 0.198,
+            "trust": 0.2,
+            "depth": 0.0638
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Provides dialysis treatment",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://prasadhospital.org/",
+          "https://www.scribd.com/document/639094200/Bihar-Hospitals-6",
+          "https://www.prasadhospital.bcchealthcarebranding.com/about-us.php",
+          "https://www.justdial.com/Muzaffarpur/Hospitals-in-Thakur-Nursing-Home-Naya-Tola/nct-10253670",
+          "https://www.justdial.com/Muzaffarpur/Hospitals-in-Khabra/nct-10253670"
+        ],
+        "cautions": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "6f4cc862-2ee6-429b-b13f-890e8f43aa20",
+        "name": "Ganpati Hospital",
+        "facility_type": "hospital",
+        "address": "Ritilal Rai Complex, Old Gundak Pool Road, Jauhari Bazar, Hajipur, Bihar, 844101",
+        "city": "Hajipur",
+        "district": "Vaishali",
+        "state": "Bihar",
+        "pin": "844101",
+        "phone": "+918460838186",
+        "website": "ganpatihospital.com",
+        "lat": 25.689390182495117,
+        "lon": 85.216064453125,
+        "distance_km": 83.8,
+        "score": 0.512,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.83 from 2 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, equipment (2 matching claims).",
+          "83.8 km away (location from listed coordinates).",
+          "Built from 7 independent web sources.",
+          "Lists 5 doctor(s).",
+          "Established 2011."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.0612,
+            "evidence": 0.83,
+            "trust": 1.0,
+            "depth": 0.277
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.0214,
+            "evidence": 0.249,
+            "trust": 0.2,
+            "depth": 0.0416
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.83,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "equipment"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "equipment",
+            "text": "Dialysis Unit",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "capability",
+            "text": "Operates a Dialysis Unit",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "http://www.ganpatihospital.com/",
+          "https://www.justdial.com/Hajipur/Ganpati-Hospital-Near-Purani-Gandak-Pool-Raod-Paswan-Chowk/9999PX624-X624-190201165349-G1H9_BZDET",
+          "https://www.justdial.com/Hajipur/Ganpati-Hospital-In-Jauhri-Bazar-Paswan-Chowk/9999PX624-X624-150601030543-K9X3_BZDET",
+          "https://www.justdial.com/Hajipur/Ganpati-Hospital-Near-Purani-Gandak-Pool-Road-Pokhra-Muhalla/9999PX624-X624-200923143018-R3Z2_BZDET",
+          "https://in.linkedin.com/company/ganpatihospital"
+        ],
+        "cautions": [],
+        "call_ahead": [],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "ce75ab0f-9fcb-4e8c-a81e-0dc3982a49dd",
+        "name": "Shivam Kidney Hospital",
+        "facility_type": "hospital",
+        "address": "Power House Chowk, Shivam Nursing Home Nh 31, Opposite Railway Goods Shed, Begusarai, Bihar, 851101",
+        "city": "Begusarai",
+        "district": "Begusarai",
+        "state": "Bihar",
+        "pin": "851101",
+        "phone": "+919835149862",
+        "website": "shivamkidneyhospital.com",
+        "lat": 25.424983978271484,
+        "lon": 86.13035583496094,
+        "distance_km": 81.5,
+        "score": 0.4901,
+        "confidence": "High",
+        "confidence_reason": "High confidence: evidence 0.83 from 2 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability, procedure (2 matching claims).",
+          "81.5 km away (location from listed coordinates).",
+          "Built from 8 independent web sources.",
+          "Coordinates match the PIN code area.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.0661,
+            "evidence": 0.83,
+            "trust": 1.0,
+            "depth": 0.12
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.0231,
+            "evidence": 0.249,
+            "trust": 0.2,
+            "depth": 0.018
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.83,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability",
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Provides dialysis treatment",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "capability",
+            "text": "Offers on-site dialysis services",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://jupiter-hospital-1.wheree.com/",
+          "https://rg-stone-urology-laparoscopy-hospital.wheree.com/",
+          "https://dr-jivraj-mehta-hospital.wheree.com/",
+          "https://rg-stone-urology-laparoscopy-hospital-5.wheree.com/",
+          "https://aarogyam-speciality-hospital.wheree.com/"
+        ],
+        "cautions": [],
+        "call_ahead": [],
+        "model_drivers": null
+      },
+      {
+        "tier": null,
+        "tier_label": null,
+        "tier_reason": null,
+        "facility_id": "a133cdd5-54ec-4d82-8743-d2ea8633aeea",
+        "name": "Usha Hospital",
+        "facility_type": "hospital",
+        "address": "Juran Chapra Road No 1, Juran Chapra, Brahmapura, Muzaffarpur, Bihar, 842001",
+        "city": "Muzaffarpur",
+        "district": "Muzaffarpur",
+        "state": "Bihar",
+        "pin": "842001",
+        "phone": "+919472357005",
+        "website": "ushahospital.com",
+        "lat": 26.126,
+        "lon": 85.3644444,
+        "distance_km": 53.2,
+        "score": 0.4009,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.58 from 1 independent field(s), record trust 0.80, facility-type fit 1.00.",
+        "why": [
+          "Dialysis is mentioned in this facility's capability (1 matching claim).",
+          "53.2 km away (location from PIN code area (listed coordinates disagree)).",
+          "Built from 7 independent web sources.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.1698,
+            "evidence": 0.575,
+            "trust": 0.8,
+            "depth": 0.06
+          },
+          "weights": {
+            "proximity": 0.35,
+            "evidence": 0.3,
+            "trust": 0.2,
+            "depth": 0.15
+          },
+          "contributions": {
+            "proximity": 0.0594,
+            "evidence": 0.1725,
+            "trust": 0.16,
+            "depth": 0.009
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.575,
+            "type_fit": 1.0,
+            "trust_score": 0.8,
+            "tau_km": 30.0,
+            "evidence_fields": [
+              "capability"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "capability",
+            "text": "Specialist services in Orthopedics, Radiology, General Surgery, Neurology, Gynaecology (OBS and Gynae), Plastic Surgery, Anaesthesiology, General Medicine, Dialysis, Ultrasonography, ICU",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "nephrology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.hexahealth.com/hospitals/insurance/care-health-insurance-hospital-list-muzaffarpur",
+          "https://www.drlogy.com/ayushman-bharat/hospitals/bihar/muzaffarpur/usha-hospital-muzaffarpur",
+          "https://www.insurancedekho.com/health-insurance/care-health-insurance/network-hospitals-in-muzaffarpur",
+          "https://ushahospital.co.in/",
+          "https://www.facebook.com/198249734400826"
+        ],
+        "cautions": [
+          "Only one field (capability) mentions it; not corroborated elsewhere in the record.",
+          "Listed coordinates are 162.7 km from the PIN code's area (city agrees with PIN); the location we used may still be off."
+        ],
+        "call_ahead": [
+          "Only one field (capability) mentions it; not corroborated elsewhere in the record.",
+          "Listed coordinates are 162.7 km from the PIN code's area (city agrees with PIN); the location we used may still be off."
+        ],
+        "model_drivers": null
+      }
+    ],
+    "skipped_nearby": [],
+    "medical_desert_alert": {
+      "triggered": false,
+      "safe_km": 30,
+      "nearest_verified_km": 0.6,
+      "nearest_verified_name": "R. B. Memorial Hospital",
+      "message": null
+    },
+    "spoken_summary": "For dialysis near Darbhanga, Bihar, my best recommendation is R. B. Memorial Hospital, 0.6 kilometres away. Dialysis is mentioned in this facility's capability, procedure (2 matching claims). Confidence is high. One caution: Listed coordinates are 81.5 km from the PIN code's area (city agrees with coordinates); the location we used may still be off. Call ahead on +91 62722 33684. Other options: nearest verified, Dr. Global Healthcare & Diabetes Centre (Dr. Naween Kumar), 3.9 kilometres; highest-confidence specialist, New B K Hospital, 84 kilometres. I checked 2293 facilities that mention dialysis, and kept only those with direct evidence and a trustworthy record.",
+    "elapsed_ms": 47.7
+  }
+}

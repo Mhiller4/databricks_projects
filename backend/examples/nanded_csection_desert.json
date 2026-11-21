@@ -1,0 +1,492 @@
+{
+  "request": {
+    "service": "emergency c-section",
+    "location": "Nanded",
+    "urgency": "emergency"
+  },
+  "response": {
+    "status": "ok",
+    "query": {
+      "service": {
+        "input": "emergency c-section",
+        "key": "emergency_c_section",
+        "label": "Emergency C-section / high-risk delivery",
+        "matched_by": "label",
+        "alternatives": [],
+        "tau_km": 25
+      },
+      "location": {
+        "input": "Nanded",
+        "kind": "city",
+        "display_name": "Nanded, Maharashtra",
+        "district": "Nanded",
+        "state": "Maharashtra",
+        "lat": 19.16384,
+        "lon": 77.30648,
+        "alternatives": [
+          "Nanded district, Maharashtra",
+          "Nanded (post office), Jalgaon district, Maharashtra",
+          "Nanded (post office), Ujjain district, Madhya Pradesh"
+        ]
+      },
+      "urgency": "emergency",
+      "weights": {
+        "proximity": 0.5,
+        "evidence": 0.25,
+        "trust": 0.15,
+        "depth": 0.1
+      },
+      "radius_km": 50.0
+    },
+    "method": {
+      "gates": [
+        "Direct evidence: the service is named in the facility's own procedure, equipment, capability or description text",
+        "The matching text is not only a listing about another hospital",
+        "Record trust ≥ 0.5 (penalties for location conflicts, thin sources, merged records)",
+        "Facility type fit ≥ 0.5 (a dental clinic offering a NICU fails)",
+        "Within 50 km (τ 25 km × 2 for emergency)"
+      ],
+      "score": "Σ weight × component over facilities that pass every gate",
+      "confidence_rules": [
+        {
+          "level": "High",
+          "rule": "evidence >= 0.75 (two or more independent fields agree), trust >= 0.75 and the facility type fits"
+        },
+        {
+          "level": "Medium",
+          "rule": "evidence >= 0.5, trust >= 0.5 and the facility type plausibly fits (type_fit >= 0.5)"
+        },
+        {
+          "level": "Low",
+          "rule": "anything else, including specialty-only (indirect) evidence"
+        }
+      ]
+    },
+    "funnel": [
+      {
+        "stage": "Facility records received",
+        "count": 10088
+      },
+      {
+        "stage": "After removing exact duplicates",
+        "count": 10077
+      },
+      {
+        "stage": "Well-formed, with a usable location",
+        "count": 9698
+      },
+      {
+        "stage": "Mention emergency c-section / high-risk delivery anywhere (incl. related specialty)",
+        "count": 4474
+      },
+      {
+        "stage": "Within 50 km of Nanded, Maharashtra",
+        "count": 2
+      },
+      {
+        "stage": "Direct evidence in their own text",
+        "count": 0
+      },
+      {
+        "stage": "Record trust ≥ 0.5 and facility type fits",
+        "count": 0
+      },
+      {
+        "stage": "Recommended",
+        "count": 0
+      }
+    ],
+    "recommendations": [],
+    "nearest_beyond_radius": [
+      {
+        "tier": "nearest_verified",
+        "tier_label": "Nearest verified",
+        "tier_reason": "Nothing verified within the search radius; this is the closest facility that passes every check.",
+        "facility_id": "8890fac9-0195-461d-be4a-c0037df60375",
+        "name": "Manorama Super Speciality Hospital",
+        "facility_type": "hospital",
+        "address": "Saraswathi Nagar, Hyderabad Rd, Near Yellam Gutta Chowk, Yellama Gutta Road, Yellama Gutta Road, Nizamabad, Telangana, 503001",
+        "city": "Nizamabad",
+        "district": "Nizamabad",
+        "state": "Telangana",
+        "pin": "503001",
+        "phone": "+918462251999",
+        "website": "manoramahospitals.com",
+        "lat": 18.673877716064453,
+        "lon": 78.10700988769531,
+        "distance_km": 100.3,
+        "score": 0.3709,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.60 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Emergency C-section / high-risk delivery is mentioned in this facility's procedure (1 matching claim).",
+          "100.3 km away (location from listed coordinates).",
+          "Built from 7 independent web sources.",
+          "Lists 100 beds.",
+          "Lists 10 doctor(s)."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.0181,
+            "evidence": 0.6,
+            "trust": 1.0,
+            "depth": 0.618
+          },
+          "weights": {
+            "proximity": 0.5,
+            "evidence": 0.25,
+            "trust": 0.15,
+            "depth": 0.1
+          },
+          "contributions": {
+            "proximity": 0.0091,
+            "evidence": 0.15,
+            "trust": 0.15,
+            "depth": 0.0618
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.6,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 25.0,
+            "evidence_fields": [
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Cesarean Delivery",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://www.skedoc.com/nizamabad/hospitals/ent",
+          "https://www.skedoc.com/nizamabad/dwaraka-nagar/hospitals/ent",
+          "https://www.ambitionbox.com/overview/manorama-super-speciality-hospital-overview",
+          "https://www.mappls.com/dfcd7b",
+          "https://www.iffcotokio.co.in/health-insurance/city/nizamabad"
+        ],
+        "cautions": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": "next_nearest",
+        "tier_label": "Next nearest verified",
+        "tier_reason": "The next closest facility that passes every check.",
+        "facility_id": "f52051e0-fbd4-4b16-bdf3-c1eb5ee67902",
+        "name": "Maa Ganga Memorial Baheti Hospital",
+        "facility_type": "hospital",
+        "address": "Akola Hingoli Highway Akola Naka, Akola Hingoli Highway, Akola Naka, Washim, Maharashtra, 444505",
+        "city": "Washim",
+        "district": "Washim",
+        "state": "Maharashtra",
+        "pin": "444505",
+        "phone": "+919423127962",
+        "website": "https://washim.gov.in/en/public-utility-category/hospital/page/2/",
+        "lat": 20.122486114501953,
+        "lon": 77.12786865234375,
+        "distance_km": 108.2,
+        "score": 0.3397,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Emergency C-section / high-risk delivery is mentioned in this facility's procedure (1 matching claim).",
+          "108.2 km away (location from listed coordinates).",
+          "Built from 9 independent web sources.",
+          "Lists 3 doctor(s).",
+          "Coordinates match the PIN code area."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.0132,
+            "evidence": 0.66,
+            "trust": 1.0,
+            "depth": 0.181
+          },
+          "weights": {
+            "proximity": 0.5,
+            "evidence": 0.25,
+            "trust": 0.15,
+            "depth": 0.1
+          },
+          "contributions": {
+            "proximity": 0.0066,
+            "evidence": 0.165,
+            "trust": 0.15,
+            "depth": 0.0181
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 25.0,
+            "evidence_fields": [
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "High-risk pregnancy treatment",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "maternalFetalMedicineOrPerinatology",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://washim.gov.in/en/public-utility-category/hospital/page/2/",
+          "https://www.justdial.com/Akot/Pmjay-Scheme-Hospitals/nct-15200323/page-4",
+          "https://www.justdial.com/Washim/Maa-Ganga-Memorial-Baheti-Hospital-Akola-Naka/9999P7252-7252-130228122026-Q9C3_BZDET",
+          "https://www.mappls.com/bf7k54",
+          "https://www.facebook.com/116842348866132"
+        ],
+        "cautions": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      },
+      {
+        "tier": "next_nearest",
+        "tier_label": "Next nearest verified",
+        "tier_reason": "The next closest facility that passes every check.",
+        "facility_id": "a7e109ce-3da9-468e-aae2-b2c48277009d",
+        "name": "Manthale Hospital",
+        "facility_type": "hospital",
+        "address": "Taj Colony, Next To Vivekananda School Shivapur, Road, Basavakalyan, Karnataka, 585327",
+        "city": "Basavakalyan",
+        "district": "Bidar",
+        "state": "Karnataka",
+        "pin": "585327",
+        "phone": "+916362007668",
+        "website": "manthalehospital.com",
+        "lat": 17.862510681152344,
+        "lon": 76.95042419433594,
+        "distance_km": 149.5,
+        "score": 0.3222,
+        "confidence": "Medium",
+        "confidence_reason": "Medium confidence: evidence 0.66 from 1 independent field(s), record trust 1.00, facility-type fit 1.00.",
+        "why": [
+          "Emergency C-section / high-risk delivery is mentioned in this facility's procedure (1 matching claim).",
+          "149.5 km away (location from listed coordinates).",
+          "Built from 6 independent web sources.",
+          "Phone number listed."
+        ],
+        "score_breakdown": {
+          "components": {
+            "proximity": 0.0025,
+            "evidence": 0.66,
+            "trust": 1.0,
+            "depth": 0.06
+          },
+          "weights": {
+            "proximity": 0.5,
+            "evidence": 0.25,
+            "trust": 0.15,
+            "depth": 0.1
+          },
+          "contributions": {
+            "proximity": 0.0013,
+            "evidence": 0.165,
+            "trust": 0.15,
+            "depth": 0.006
+          },
+          "formula": "score = Σ weight × component; evidence = evidence_score × type_fit; proximity = exp(−km / τ)",
+          "raw": {
+            "evidence_score": 0.66,
+            "type_fit": 1.0,
+            "trust_score": 1.0,
+            "tau_km": 25.0,
+            "evidence_fields": [
+              "procedure"
+            ]
+          }
+        },
+        "citations": [
+          {
+            "field": "procedure",
+            "text": "Performs cesarean deliveries (C-sections)",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          },
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics",
+            "third_party": false,
+            "source_table": "workspace.hc_gold.facility_evidence_snippets"
+          }
+        ],
+        "source_urls": [
+          "https://en.wikipedia.org/wiki/Basavakalyan",
+          "https://www.justdial.com/Bidar/Maternity-Hospitals-in-Basavakalyan/nct-10314263",
+          "https://www.justdial.com/Bidar/Hospitals-in-Basavakalyan/nct-10253670",
+          "https://www.cardiologistindia.com/karnataka/basavakalyan/manthale-hospital.html",
+          "https://www.mappls.com/place-manthale+hospital-taj+colony-next+to+vivekananda+school+shivapur-basavakalyan-karnataka-585327-VMFAQ2@zdata=MTcuODYyNTIxKzc2Ljk1MDQxNisxNytWTUZBUTIrK25yed"
+        ],
+        "cautions": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "call_ahead": [
+          "Only one field (procedure) mentions it; not corroborated elsewhere in the record."
+        ],
+        "model_drivers": null
+      }
+    ],
+    "ranked": [],
+    "skipped_nearby": [
+      {
+        "facility_id": "267345c8-24d1-4efb-a400-1c409a07509f",
+        "name": "Umrekar Multispeciality Hospital",
+        "facility_type": "hospital",
+        "distance_km": 0.7,
+        "lat": 19.158050537109375,
+        "lon": 77.30783081054688,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      },
+      {
+        "facility_id": "6231d4b9-d273-4f0f-9d91-7813fe7104e0",
+        "name": "S.G.G.S Memorial Government Hospital",
+        "facility_type": "hospital",
+        "distance_km": 1.1,
+        "lat": 19.155561447143555,
+        "lon": 77.31147766113281,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      },
+      {
+        "facility_id": "78dca3b4-d147-45af-9e17-4dc4a6c3fb28",
+        "name": "Maniyar Diagnostic Center",
+        "facility_type": "clinic",
+        "distance_km": 56.7,
+        "lat": 19.26073455810547,
+        "lon": 76.77613830566406,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed",
+          "facility type fit 0.24 is below 0.5 (Listed as a clinic, which rarely provides emergency c-section / high-risk delivery. The name suggests a diagnostic lab facility; the emergency c-section / high-risk delivery text may come from another facility merged into this record.)",
+          "57 km away, beyond the 50 km search radius"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      },
+      {
+        "facility_id": "f4733817-1a30-4ebc-98c7-30391c08a4f0",
+        "name": "Tirupati Hospital",
+        "facility_type": "hospital",
+        "distance_km": 64.8,
+        "lat": 18.700008,
+        "lon": 76.933292,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed",
+          "65 km away, beyond the 50 km search radius"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      },
+      {
+        "facility_id": "3d654d85-255a-4f35-8c80-5d651b58bb7a",
+        "name": "Parbhani Medical College",
+        "facility_type": "hospital",
+        "distance_km": 69.0,
+        "lat": 19.299341201782227,
+        "lon": 76.66498565673828,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed",
+          "69 km away, beyond the 50 km search radius"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      },
+      {
+        "facility_id": "fd558b5c-5389-4006-b813-6eb29af563f2",
+        "name": "Shri Gajanan Heart &Eye Hospital",
+        "facility_type": "hospital",
+        "distance_km": 72.3,
+        "lat": 19.46062,
+        "lon": 76.693244,
+        "confidence": "Low",
+        "excluded": true,
+        "reasons": [
+          "no direct evidence: only a related specialty is listed",
+          "facility type fit 0.40 is below 0.5 (The name suggests a eye facility; the emergency c-section / high-risk delivery text may come from another facility merged into this record.)",
+          "72 km away, beyond the 50 km search radius"
+        ],
+        "evidence": [
+          {
+            "field": "specialties",
+            "text": "gynecologyAndObstetrics"
+          }
+        ]
+      }
+    ],
+    "medical_desert_alert": {
+      "triggered": true,
+      "safe_km": 25,
+      "nearest_verified_km": 100.3,
+      "nearest_verified_name": "Manorama Super Speciality Hospital",
+      "message": "No facility in this dataset with verified emergency c-section / high-risk delivery evidence within 25 km of Nanded, Maharashtra. The nearest verified option is Manorama Super Speciality Hospital, 100 km away. The dataset under-covers government facilities, so check with the district hospital too."
+    },
+    "spoken_summary": "I could not find a facility with verified emergency c-section near Nanded, Maharashtra in our data. The nearest verified option is Manorama Super Speciality Hospital in Nizamabad, 100 kilometres away. Their listed phone number is +91 84622 51999. Please call before travelling. Our data has few government hospitals, so please also check with the district hospital.",
+    "elapsed_ms": 71.1
+  }
+}

@@ -1,6 +1,6 @@
 # Care Finder, end to end:
 #   Delta Share -> bronze (as received) -> DQ profile -> auto-clean silver -> DQ profile
-#   -> facility_master -> location lookup / service evidence / trust -> index + SQL functions -> demo
+#   -> facility_master -> location lookup / service evidence / trust -> index + SQL functions -> demo + Parquet export
 #
 #   databricks bundle run hc_care_finder -t free --profile <p>        (~10 min)
 #
@@ -92,6 +92,11 @@ resources:
           depends_on: [{ task_key: location_lookup }, { task_key: service_evidence }, { task_key: facility_trust }]
           notebook_task:
             notebook_path: ../notebooks/gold/23_care_finder_index.py
+
+        - task_key: export_serving
+          depends_on: [{ task_key: index_and_functions }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/25_export_serving.py
 
         - task_key: demo
           depends_on: [{ task_key: index_and_functions }]
