@@ -53,16 +53,21 @@ databricks fs cp -r --overwrite dbfs:/Volumes/workspace/hc_gold/serving backend/
 
 ## WP1 · Backend additions (`backend/`)
 
-- [ ] 1.1 `POST /api/livekit/token` as in design §3.1. Add `livekit-api` to `backend/requirements.txt`.
+- [x] 1.1 `POST /api/livekit/token` as in design §3.1. Add `livekit-api` to `backend/requirements.txt`.
       Test: a token decodes (no network), has room, identity, attributes and grants, and a TTL of 15 min.
-- [ ] 1.2 `GET /api/locations` type-ahead as in design §3.2. Tests: `"Ban"` returns Bangalore/Bengaluru
+      *(Note: LiveKit JWT carries identity in `sub`, grants camelCase (`roomJoin`), TTL = `exp` − `nbf`.)*
+- [x] 1.2 `GET /api/locations` type-ahead as in design §3.2. Tests: `"Ban"` returns Bangalore/Bengaluru
       and Bandra-type localities with state and district; `"8000"` returns PIN 8000xx rows; at most 8 rows.
-- [ ] 1.3 `GET /api/config` as in design §3.3.
-- [ ] 1.4 Optional `session` on `POST /api/recommend`, echoed into broadcasts (design §3.4).
-- [ ] 1.5 Volume loading in `data.py` (design §3.5). Unit-test the "local data present" path; the volume
-      path is tested in WP4.
-- [ ] 1.6 Engine import works both from the repo and from the assembled app (design §7).
-- **Checks**: `.venv/bin/pytest -q` green (11 existing + new). `/docs` shows the new endpoints.
+- [x] 1.3 `GET /api/config` as in design §3.3.
+- [x] 1.4 Optional `session` on `POST /api/recommend`, echoed into broadcasts (design §3.4).
+- [x] 1.5 Volume loading in `data.py` (design §3.5). Unit-test the "local data present" path; the volume
+      path is tested in WP4. *(Implementation note: the SDK Files API methods are
+      `list_directory_contents` + `download_to`; verified against the live volume — all 4 tables
+      download. Inside a Databricks App the ambient credentials are the app service principal's.)*
+- [x] 1.6 Engine import works both from the repo and from the assembled app (design §7).
+      *(try `from hc import care`, fall back to `src/` on the path.)*
+- **Checks**: `.venv/bin/pytest -q` green (**19 passed**: 11 existing + 8 new in `tests/test_web_app.py`).
+  `/docs` shows the new endpoints (token, config; locations now type-ahead).
 
 ## WP2 · Voice agent (`voice_agent/agent.py`)
 

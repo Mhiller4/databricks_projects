@@ -24,8 +24,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
-from hc import care  # noqa: E402  (shared with the Databricks notebooks; no Spark imports)
+try:
+    from hc import care  # noqa: E402  (assembled app: hc/ sits next to app/)
+except ImportError:  # repo layout: the shared module lives under src/
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
+    from hc import care  # noqa: E402  (shared with the Databricks notebooks; no Spark imports)
 
 from .data import Store  # noqa: E402
 from .summary import spoken_summary  # noqa: E402
@@ -202,6 +205,54 @@ def location_precision(loc: dict) -> dict:
             f"Distances are measured from the {label} of {loc['display_name'].split(' (')[0]}. "
             "A locality or 6-digit PIN code would give closer, more accurate results.",
     }
+
+
+# ---------------------------------------------------------------------------------------------
+# Type-ahead suggestions (the web location box)
+# ---------------------------------------------------------------------------------------------
+
+SUGGEST_MIN_CHARS = 2   # start suggesting at two characters
+SUGGEST_LIMIT = 8
+SUGGEST_DEDUPE_KM = 2   # same name resolving to nearly the same point (city + post office) = one row
+
+
+def location_suggest(store: Store, q: str, limit: int = SUGGEST_LIMIT) -> list[dict]:
+    """Prefix-match candidates for the location box, best first.
+
+    Only real rows from the gold location_lookup: PIN codes, post-office localities, towns,
+    districts. Bigger places (more facility points) rank first; near-duplicate points that
+    differ only by kind are collapsed. Precision labels come from location_precision().
+    """
+    key = care.key(q or "")
+    if len(key) < SUGGEST_MIN_CHARS:
+        return []
+    rows = store.query(
+        "SELECT kind, display_name, district, state, state_key, lat, lon, priority, n_points "
+        "FROM location_lookup WHERE starts_with(name_key, ?) AND kind <> 'state' "
+        "ORDER BY n_points DESC, priority LIMIT 60",
+        [key],
+    )
+
+    def base_name(name: str) -> str:
+        return name.split(" (")[0].split(",")[0]
+
+    kept: list[dict] = []
+    for r in rows:
+        dup = next(
+            (g for g in kept
+             if care.key(base_name(g["display_name"])) == care.key(base_name(r["display_name"]))
+             and _km_between(g, r) <= SUGGEST_DEDUPE_KM),
+            None,
+        )
+        if dup is None:
+            kept.append(r)
+    out = []
+    for r in kept[:limit]:
+        p = location_precision(r)
+        out.append({"kind": r["kind"], "display_name": r["display_name"], "district": r["district"],
+                    "state": r["state"], "lat": r["lat"], "lon": r["lon"],
+                    "precision": p["precision"], "is_precise": p["is_precise"]})
+    return out
 
 
 # ---------------------------------------------------------------------------------------------

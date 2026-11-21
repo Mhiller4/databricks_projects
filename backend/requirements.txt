@@ -2,3 +2,5 @@ fastapi>=0.115
 uvicorn[standard]>=0.30
 duckdb>=1.1
 pydantic>=2.7
+livekit-api>=0.7          # /api/livekit/token (no network needed to mint a token)
+databricks-sdk>=0.38      # volume download at app startup; optional when local data exists

@@ -1,0 +1,6 @@
+# WP0 spike app. LIVEKIT_URL is the non-secret project URL (wss://<project>.livekit.cloud)
+# from .env.local — the API key and secret are never put here.
+command: ["python", "app.py"]
+env:
+  - name: LIVEKIT_URL
+    value: "wss://REPLACE-WITH-YOUR-PROJECT.livekit.cloud"
