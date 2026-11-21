@@ -1,0 +1,58 @@
+# Kickoff data pipeline: files in landing/kickoff -> bronze -> DQ profile -> auto-clean silver -> DQ profile.
+# Saturday: upload the organizer files, run this, read hc_gold.dq_cleaning_log, then tune overrides_json.
+
+resources:
+  jobs:
+    hc_kickoff:
+      name: hc_kickoff
+      max_concurrent_runs: 1
+      tags:
+        project: hc_datathon
+        layer: kickoff
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: landing_volume
+          default: ${var.landing_volume}
+        - name: table_prefix
+          default: kickoff_
+        - name: overrides_json
+          default: "{}"
+
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: ../notebooks/00_setup/create_schemas_and_volume.py
+
+        - task_key: ingest_bronze
+          depends_on: [{ task_key: setup }]
+          notebook_task:
+            notebook_path: ../notebooks/bronze/03_ingest_kickoff_files.py
+
+        - task_key: profile_bronze
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: bronze
+              name_like: kickoff_*
+
+        - task_key: clean_silver
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/11_clean_kickoff_tables.py
+
+        - task_key: profile_silver
+          depends_on: [{ task_key: clean_silver }, { task_key: profile_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: silver
+              name_like: kickoff_*

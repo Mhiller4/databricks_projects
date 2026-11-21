@@ -1,42 +1,82 @@
-# Databricks Asset Bundle Starter Template
+# Healthcare Datathon: Databricks pipeline
 
-This template is a professional, placeholder-first reference for teams that are strong in data engineering and new to Databricks bundle conventions.
+> Turn messy healthcare data into decisions that save lives.
+> Team: Mekeli + Bryce · Submission due Sun Nov 22, 12:30 PM
 
-## What this template demonstrates
+A medallion pipeline that is ready **before** we see the organizers' data:
 
-- A clean, commented `databricks.yml` with `personal_dev`, `dev`, `test`, and `prod` targets.
-- Medallion architecture example notebooks (`drop_zone`, `raw`, `enriched`, `curated`).
-- A non-medallion example notebook path (reverse ETL style).
-- One resource file per job, including schedule examples and dependency patterns.
-- A full orchestrator job that links layer jobs together.
-- A Databricks tooling crash-course notebook (widgets, `%sql`, dbutils patterns, runtime tips).
-- A scaffolded Databricks App folder for future expansion.
+* **Public context, pre-built:** 8 free federal datasets cleaned and joined into `hc_gold.county_context`
+  (one row per US county, ~120 columns).
+* **Kickoff data, auto-ingested:** drop any files in the landing volume. The pipeline reads them,
+  profiles them, cleans them, and logs every cleaning decision.
+* **Glue:** ZIP / FIPS / state + county name → county, so the kickoff data joins to the context.
 
-## Template philosophy
-
-- v1 is intentionally placeholder-heavy.
-- Comments explain why a section exists and how it links to other sections.
-- Runtime logic is minimal by design.
-
-## Suggested onboarding flow
-
-1. Read `databricks.yml`.
-2. Review `resources/00_schemas_and_volumes.yml`.
-3. Follow layer jobs in `resources/10_*` through `resources/13_*`.
-4. Review orchestration in `resources/30_orchestrator_full.yml`.
-5. Run the crash-course notebook in `notebooks/tooling_demo/databricks_crash_course.py`.
-
-## Typical commands
-
-```bash
-databricks bundle validate
-databricks bundle deploy --target personal_dev
-databricks bundle run template_orchestrator_full --target personal_dev
+```
+landing volume ──► hc_bronze (as received) ──► hc_silver (clean, typed, keyed) ──► hc_gold (joined, scored)
+ public/  kickoff/      all strings + lineage       types, FIPS/ZIP, dedupe          county_context, dq_*, model + decision outputs
 ```
 
-## Next steps for a real project
+## Layout
 
-1. Replace placeholders for workspace hosts, groups, and catalog names.
-2. Rename schemas and jobs to your domain language.
-3. Replace notebook placeholders with domain logic.
-4. Add tests and validation tasks per pipeline stage.
+| Path | What it is |
+|---|---|
+| `databricks.yml` | bundle: `free` target (default) and `hackathon` target |
+| `resources/hc_public_sources.job.yml` | job: fetch → bronze → silver → `county_context` → DQ profile |
+| `resources/hc_kickoff.job.yml` | job: kickoff files → bronze → profile → auto-clean → profile |
+| `src/hc/` | shared library (sources, naming, io, geo, clean, profile) |
+| `notebooks/_setup.py` | `%run ../_setup` → `cfg`, helpers on the path |
+| `notebooks/00_setup/` | create schemas + landing volume |
+| `notebooks/bronze/` | `01` fetch public · `02` ingest public · `03` ingest kickoff files |
+| `notebooks/silver/` | `10` DQ profile · `11` auto-clean kickoff · `12` clean public sources |
+| `notebooks/gold/` | `20` county_context · `21` link kickoff data to counties |
+| `scripts/fetch_public_sources.py` | laptop fallback if the workspace can't reach the internet |
+| `docs/KICKOFF_RUNBOOK.md` | **Saturday-morning checklist** |
+
+## Setup (once per person)
+
+```bash
+brew tap databricks/tap && brew trust databricks/tap && brew install databricks
+databricks auth login --host https://<your-free-edition-host> --profile <name>
+databricks bundle validate -t free --profile <name>
+databricks bundle deploy   -t free --profile <name>
+databricks bundle run hc_public_sources -t free --profile <name>     # ~10-15 min
+```
+
+If `fetch_public` fails (outbound internet blocked), run this on a laptop and re-run the job:
+
+```bash
+python3 scripts/fetch_public_sources.py --upload --profile <name>
+```
+
+No CLI? Everything also works from the UI: create a Git folder from this repo and run the notebooks
+in order (`00_setup` → `bronze/01` → `02` → `silver/12` → `gold/20` → `silver/10`).
+
+## Public sources
+
+| Table | Publisher | Grain | Join key |
+|---|---|---|---|
+| `svi_county_2022` | CDC/ATSDR | county | FIPS |
+| `places_county` | CDC | county × 40 health measures | FIPS |
+| `overdose_county_vsrr` | CDC/NCHS | county × month | FIPS (unpadded) |
+| `hpsa_primary_care`, `hpsa_mental_health` | HRSA | shortage designation | FIPS |
+| `cms_hospital_general_info` | CMS | hospital | state + county name, ZIP |
+| `usda_rucc_2023` | USDA ERS | county | FIPS |
+| `zcta_county_xwalk_2020` | Census | ZIP × county | ZCTA → FIPS |
+
+Details, caveats and URLs are in [`src/hc/sources.py`](src/hc/sources.py). Messiness found so far:
+~47% of county-month overdose counts are suppressed (1-9 deaths); PLACES mixes 2022/2023 survey
+years; ~60% of HPSA rows are withdrawn designations; CMS has no FIPS and 42% of hospitals have
+no star rating.
+
+## Output tables worth knowing
+
+* `hc_gold.county_context`: the join target (column comments set for Genie)
+* `hc_gold.dq_table_summary`, `hc_gold.dq_profile`: before/after data-quality scorecard
+* `hc_gold.dq_cleaning_log`: every automated cleaning decision, per column
+* `hc_bronze._column_map`: original source column names
+
+## Tests
+
+```bash
+python3 tests/test_local.py
+```

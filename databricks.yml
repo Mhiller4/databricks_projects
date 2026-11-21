@@ -1,92 +1,50 @@
-# Databricks Asset Bundle Starter Template
-# Purpose: teach DAB structure through placeholder examples and commented patterns.
+# Healthcare Datathon bundle
 #
-# IMPORTANT NOTE ABOUT VARIABLES:
-# - Defaults at the top are convenience values for local validation and quick starts.
-# - In shared environments, set real values per target and avoid relying on defaults.
-# - Treat defaults as examples, not production truth.
+# Deploy:   databricks bundle deploy -t free --profile <your-profile>
+# Run:      databricks bundle run hc_public_sources -t free --profile <your-profile>
+#           databricks bundle run hc_kickoff -t free --profile <your-profile>
+#
+# Targets
+#   free       Databricks Free Edition (default). Serverless only, catalog `workspace`.
+#   hackathon  A workspace the organizers might provide. Change `catalog` (and host) there.
+#
+# Neither target pins a host: the --profile you pass decides the workspace, so each of us can
+# deploy the same bundle to our own Free Edition workspace.
+#
+# Schemas/volume are NOT bundle resources. notebooks/00_setup creates them with IF NOT EXISTS, so
+# `bundle destroy` never drops data and UI-only work sees the same layout.
 
 bundle:
-  name: dab-template-starter
+  name: hc_datathon
 
 variables:
-  catalog_name:
-    description: "Unity Catalog for this project"
-    default: your_catalog_dev
-
-  drop_zone_schema:
-    description: "Landing/drop-zone schema (medallion: drop_zone)"
-    default: template_drop_zone
-
-  raw_schema:
-    description: "Raw (bronze) schema"
-    default: template_raw
-
-  enriched_schema:
-    description: "Enriched (silver) schema"
-    default: template_enriched
-
-  curated_schema:
-    description: "Curated (gold) schema"
-    default: template_curated
-
-  drop_zone_volume:
-    description: "Managed volume in drop_zone schema used for file landing"
+  catalog:
+    description: Unity Catalog catalog (Free Edition ships with `workspace`)
+    default: workspace
+  bronze_schema:
+    description: Raw tables as received
+    default: hc_bronze
+  silver_schema:
+    description: Cleaned, typed, joinable tables
+    default: hc_silver
+  gold_schema:
+    description: Analysis/model-ready tables, DQ scorecards, decision outputs
+    default: hc_gold
+  landing_volume:
+    description: Managed volume (in bronze schema) for raw files
     default: landing
 
-  owner_email:
-    description: "Optional owner/contact for notifications"
-    default: ""
-
-# One resource per file keeps changes isolated and reviewable.
 include:
   - resources/*.yml
 
-# ===============================================================================================
-# Targets
-# ===============================================================================================
 targets:
-  personal_dev:
+  free:
     default: true
+    mode: development # job names get a [dev <user>] prefix; schedules paused
+
+  hackathon:
     mode: development
-    workspace:
-      host: https://<your-personal-workspace>.azuredatabricks.net
-      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    # workspace:
+    #   host: https://<organizer-workspace>.cloud.databricks.com
     variables:
-      catalog_name: your_catalog_dev
-
-  dev:
-    mode: production
-    default: false
-    workspace:
-      host: https://<your-dev-workspace>.azuredatabricks.net
-      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
-    variables:
-      catalog_name: your_catalog_dev
-    permissions:
-      - group_name: <your-dev-group>
-        level: CAN_MANAGE
-
-  test:
-    mode: production
-    default: false
-    workspace:
-      host: https://<your-test-workspace>.azuredatabricks.net
-      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
-    variables:
-      catalog_name: your_catalog_test
-    permissions:
-      - group_name: <your-test-group>
-        level: CAN_MANAGE
-
-  prod:
-    mode: production
-    default: false
-    workspace:
-      host: https://<your-prod-workspace>.azuredatabricks.net
-      root_path: /Workspace/<ORG>/<REPO>/.bundle/${bundle.name}/${bundle.target}
-    variables:
-      catalog_name: your_catalog_prod
-    permissions:
-      - group_name: <your-prod-group>
-        level: CAN_MANAGE
+      catalog: workspace # <- change to the catalog the organizers give us

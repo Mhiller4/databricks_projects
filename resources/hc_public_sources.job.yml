@@ -1,0 +1,66 @@
+# Public data pipeline: download -> bronze -> silver -> gold.county_context -> DQ profile.
+# Run Friday night, so Saturday starts with county context ready to join.
+# Serverless notebook tasks (no cluster config): works on Free Edition.
+
+resources:
+  jobs:
+    hc_public_sources:
+      name: hc_public_sources
+      max_concurrent_runs: 1
+      tags:
+        project: hc_datathon
+        layer: public
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: landing_volume
+          default: ${var.landing_volume}
+        - name: sources
+          default: all
+
+      tasks:
+        - task_key: setup
+          notebook_task:
+            notebook_path: ../notebooks/00_setup/create_schemas_and_volume.py
+
+        - task_key: fetch_public
+          depends_on: [{ task_key: setup }]
+          max_retries: 1
+          notebook_task:
+            notebook_path: ../notebooks/bronze/01_fetch_public_sources.py
+
+        - task_key: ingest_bronze
+          depends_on: [{ task_key: fetch_public }]
+          notebook_task:
+            notebook_path: ../notebooks/bronze/02_ingest_public_sources.py
+
+        - task_key: clean_silver
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/12_clean_public_sources.py
+
+        - task_key: county_context
+          depends_on: [{ task_key: clean_silver }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/20_build_county_context.py
+
+        - task_key: profile_bronze
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: bronze
+
+        - task_key: profile_silver
+          depends_on: [{ task_key: clean_silver }, { task_key: profile_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: silver
