@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Bronze 03 · Kickoff (organizer) data → bronze tables
+# MAGIC # Bronze 01 · Challenge data (Delta Share tables or landing files) → bronze tables
 # MAGIC
 # MAGIC **Saturday morning:** put whatever the organizers give us in
 # MAGIC `/Volumes/<catalog>/hc_bronze/landing/kickoff/`

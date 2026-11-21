@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Gold 43 · `care_finder_index` + the two functions everything else calls
+# MAGIC # Gold 23 · `care_finder_index` + the two functions everything else calls
 # MAGIC
 # MAGIC * `care_finder_index`: one row per facility × service, with everything a recommendation needs
 # MAGIC   except distance: scores, confidence label, plain-language explanation, citations, cautions, contacts.

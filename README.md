@@ -20,14 +20,11 @@ Edition and work for non-technical users such as community health workers and NG
 | `india_post_pincode_directory` (165,627) | `hc_bronze.vf_india_post_pincode_directory` | `hc_silver.vf_india_post_pincode_directory` |
 | `nfhs_5_district_health_indicators` (706) | `hc_bronze.vf_nfhs_5_district_health_indicators` | `hc_silver.vf_nfhs_5_district_health_indicators` |
 
-The share is `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset`. To reload it, use
-`databricks jobs run-now` on `hc_kickoff` with job parameters `table_prefix=vf_` and
-`source_tables=<the three full table names>`; the exact command is in [docs/KICKOFF_RUNBOOK.md](docs/KICKOFF_RUNBOOK.md).
+The share is `databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset` (bundle variable `share`).
 
-### Care Finder gold layer (built Sat Nov 21)
+### Care Finder gold layer
 
-`databricks bundle run hc_care_finder -t free --profile <p>` rebuilds everything (about 5 minutes). Rules
-and weights are in [`src/hc/care.py`](src/hc/care.py).
+Rules and weights are in [`src/hc/care.py`](src/hc/care.py).
 
 ```sql
 SELECT * FROM workspace.hc_gold.resolve_location('Darbhanga, Bihar');          -- or a PIN, or 'lat, lon'
@@ -47,41 +44,35 @@ SELECT * FROM workspace.hc_gold.recommend_facilities('dialysis', 26.13, 85.90); 
 **Score** = evidence × type fit × record trust × exp(−km / service travel distance). **Confidence**
 (High / Medium / Low) ignores distance, so a far facility can still be well evidenced.
 
-> The US public-data pipeline below (`hc_public_sources` → `county_context`) was built before kickoff.
-> It covers US counties, so it isn't part of the India submission. It still works, but it's parked.
-> The generic pieces (bronze/silver ingestion, DQ profiling, the auto-cleaner, the model template) carry over.
-
 ## Pipeline
 
-A medallion pipeline built before we saw the organizers' data:
-
-* **Public context, pre-built:** 8 free federal datasets cleaned and joined into `hc_gold.county_context`
-  (one row per US county, ~120 columns).
-* **Kickoff data, auto-ingested:** drop any files in the landing volume. The pipeline reads them,
-  profiles them, cleans them, and logs every cleaning decision.
-* **Glue:** ZIP / FIPS / state + county name → county, so the kickoff data joins to the context.
+One job, `hc_care_finder`, rebuilds everything from the share (about 10 minutes):
 
 ```
-landing volume ──► hc_bronze (as received) ──► hc_silver (clean, typed, keyed) ──► hc_gold (joined, scored)
- public/  kickoff/      all strings + lineage       types, FIPS/ZIP, dedupe          county_context, dq_*, model + decision outputs
+Delta Share ──► hc_bronze (as received) ──► hc_silver (cleaned + facility_master) ──► hc_gold (evidence, trust, index, functions)
+                 vf_* tables                 types, PIN codes, dedupe, flags              + dq_* scorecards and cleaning log
+```
+
+```bash
+databricks bundle deploy -t free --profile <name>
+databricks bundle run hc_care_finder -t free --profile <name>
 ```
 
 ## Layout
 
 | Path | What it is |
 |---|---|
-| `databricks.yml` | bundle: `free` target (default) and `hackathon` target |
-| `resources/hc_public_sources.job.yml` | job: fetch → bronze → silver → `county_context` → DQ profile |
-| `resources/hc_kickoff.job.yml` | job: kickoff files → bronze → profile → auto-clean → profile |
-| `src/hc/` | shared library (sources, naming, io, geo, clean, profile) |
-| `notebooks/_setup.py` | `%run ../_setup` → `cfg`, helpers on the path |
+| `databricks.yml` | bundle: `free` target (default) and `hackathon` target; `share` variable |
+| `resources/hc_care_finder.job.yml` | **the pipeline**: share → bronze → profile → clean → facility_master → gold → demo |
+| `resources/hc_model.job.yml` | model template job: any table + target → dummy / linear / LightGBM → SHAP → MLflow |
 | `notebooks/00_setup/` | create schemas + landing volume |
-| `notebooks/bronze/` | `01` fetch public · `02` ingest public · `03` ingest kickoff files |
-| `notebooks/silver/` | `10` DQ profile · `11` auto-clean kickoff · `12` clean public sources |
-| `notebooks/gold/` | `20` county_context · `21` link kickoff data to counties · `30` model template |
-| `resources/hc_model.job.yml` | job: any table + target → dummy / linear / LightGBM → SHAP → MLflow → gold decision tables |
-| `scripts/fetch_public_sources.py` | laptop fallback if the workspace can't reach the internet |
-| `docs/KICKOFF_RUNBOOK.md` | **Saturday-morning checklist** |
+| `notebooks/bronze/01_ingest_kickoff_data` | copy the share tables (or landing-volume files) into bronze |
+| `notebooks/silver/` | `10` DQ profile · `11` generic auto-clean · `12` facility_master |
+| `notebooks/gold/` | `20` location lookup · `21` service evidence · `22` facility trust · `23` index + SQL functions · `24` demo · `30` model template |
+| `src/hc/` | shared library: `care` (Care Finder rules), `clean`, `profile`, `geo`, `io`, `naming`, `config`, `model` |
+| `notebooks/_setup.py` | `%run ../_setup` → `cfg`, helpers on the path |
+| `apps/` | Databricks App (the health-worker interface, next) |
+| `docs/CHALLENGE.md` · `openspec/` | the brief, data findings, product spec |
 
 ## Setup (once per person)
 
@@ -90,55 +81,26 @@ brew tap databricks/tap && brew trust databricks/tap && brew install databricks
 databricks auth login --host https://<your-free-edition-host> --profile <name>
 databricks bundle validate -t free --profile <name>
 databricks bundle deploy   -t free --profile <name>
-databricks bundle run hc_public_sources -t free --profile <name>     # ~10-15 min
+databricks bundle run hc_care_finder -t free --profile <name>
 ```
 
-If `fetch_public` fails (outbound internet blocked), run this on a laptop and re-run the job:
+No CLI? Create a Git folder from this repo and run the notebooks in the order the job does.
 
-```bash
-python3 scripts/fetch_public_sources.py --upload --profile <name>
-```
+## Other tables worth knowing
 
-No CLI? Everything also works from the UI: create a Git folder from this repo and run the notebooks
-in order (`00_setup` → `bronze/01` → `02` → `silver/12` → `gold/20` → `silver/10`).
-
-## Public sources
-
-| Table | Publisher | Grain | Join key |
-|---|---|---|---|
-| `svi_county_2022` | CDC/ATSDR | county | FIPS |
-| `places_county` | CDC | county × 40 health measures | FIPS |
-| `overdose_county_vsrr` | CDC/NCHS | county × month | FIPS (unpadded) |
-| `hpsa_primary_care`, `hpsa_mental_health` | HRSA | shortage designation | FIPS |
-| `cms_hospital_general_info` | CMS | hospital | state + county name, ZIP |
-| `usda_rucc_2023` | USDA ERS | county | FIPS |
-| `zcta_county_xwalk_2020` | Census | ZIP × county | ZCTA → FIPS |
-
-Details, caveats and URLs are in [`src/hc/sources.py`](src/hc/sources.py). Messiness found so far:
-~47% of county-month overdose counts are suppressed (1-9 deaths); PLACES mixes 2022/2023 survey
-years; ~60% of HPSA rows are withdrawn designations; CMS has no FIPS and 42% of hospitals have
-no star rating.
-
-## Output tables worth knowing
-
-* `hc_gold.county_context`: the join target (column comments set for Genie)
-* `hc_gold.dq_table_summary`, `hc_gold.dq_profile`: before/after data-quality scorecard
-* `hc_gold.dq_cleaning_log`: every automated cleaning decision, per column
-* `hc_bronze._column_map`: original source column names
-* `hc_gold.pred_<run>`: per-row out-of-fold score, rank, and top 3 reasons (from `gold/30`)
-* `hc_gold.model_leaderboard`, `hc_gold.model_feature_importance`: every model run, keyed by MLflow `run_id`
+* `hc_gold.dq_table_summary`, `hc_gold.dq_profile`: before/after data-quality scorecard (bronze vs silver)
+* `hc_gold.dq_cleaning_log`: every automated cleaning decision, per column. Fix wrong calls with the
+  `overrides_json` job parameter (types, keep_string, primary_key, rename, drop, null_tokens)
+* `hc_gold.pred_<run>`, `hc_gold.model_leaderboard`, `hc_gold.model_feature_importance`: model template outputs
 
 ## Modeling
 
 ```bash
-# default: counties with more overdose deaths than their profile predicts (split by state)
-databricks bundle run hc_model -t free --profile <name>
-# any other table / target
 databricks bundle run hc_model -t free --profile <name> \
   --params source_table=<gold table>,target_col=<col>,id_cols=<ids>,exclude_cols=<leaky globs>,group_col=<col or blank>
 ```
 
-Note: `--params` replaces a parameter's default, so pass `exclude_cols` in full each time.
+There is no default table. `--params` replaces a parameter's default, so pass `exclude_cols` in full each time.
 Runs appear in MLflow under `/Users/<you>/hc_datathon_models`.
 
 ## Tests

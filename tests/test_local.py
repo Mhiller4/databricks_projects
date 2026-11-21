@@ -6,7 +6,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src"))
 
 from hc.naming import snake, table_name_from_file, unique_snake  # noqa: E402
-from hc.sources import PUBLIC_SOURCES, SOURCES_BY_KEY, select_sources  # noqa: E402
 
 
 def test_snake_cases():
@@ -35,29 +34,13 @@ def test_table_name_from_file():
     assert table_name_from_file("sub/dir/labs.XPT") == "labs"
 
 
-def test_sources_registry():
-    keys = [s.key for s in PUBLIC_SOURCES]
-    assert len(keys) == len(set(keys))
-    assert all(k == snake(k) for k in keys), "source keys must already be valid table names"
-    assert all(s.url.startswith("https://") for s in PUBLIC_SOURCES)
-    assert select_sources("all") == PUBLIC_SOURCES
-    assert [s.key for s in select_sources("svi_county_2022, usda_rucc_2023")] == ["svi_county_2022", "usda_rucc_2023"]
-    assert "places_county" in SOURCES_BY_KEY
-    try:
-        select_sources("nope")
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("unknown key should raise")
-
-
 def test_identifier_regex():
     # imported lazily: clean.py needs pyspark; replicate just the regex check if pyspark is missing
     try:
         from hc.clean import is_identifier_like
     except ImportError:
         return
-    for c in ["patient_id", "zip_code", "icd10_code", "county_fips", "npi", "provider_number"]:
+    for c in ["facility_id", "pin_code", "postcode", "pincode", "provider_number"]:
         assert is_identifier_like(c), c
     for c in ["age", "los_days", "hpsa_score", "paid_amount", "valid_flag"]:
         assert not is_identifier_like(c), c

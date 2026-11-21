@@ -3,7 +3,7 @@
 Everything a judge would ask about under "HOW did you decide?" lives here, in plain Python, so it can
 be read, tested, and written to gold.service_catalog / shown in the app. No Spark imports.
 
-Scoring, end to end (see notebooks/gold/41-43):
+Scoring, end to end (see notebooks/gold/21-23):
 
     evidence_score  = 1 - PRODUCT(1 - best_weight_per_field)       noisy-OR across independent fields
                       (+ QUANTITY_BONUS when a snippet gives specifics like "10 dialysis machines")
@@ -250,7 +250,7 @@ CONFIDENCE_RULES = (
 
 
 def confidence(evidence: float, trust: float, type_fit: float) -> str:
-    """Python twin of the SQL CASE in gold/43, used by tests and the app."""
+    """Python twin of the SQL CASE in gold/23, used by tests and the app."""
     if evidence >= 0.75 and trust >= 0.75 and type_fit >= 0.9:
         return "High"
     if evidence >= 0.5 and trust >= 0.5 and type_fit >= 0.5:

@@ -1,8 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Gold 42 · `facility_trust`: how much should we believe this record at all?
+# MAGIC # Gold 22 · `facility_trust`: how much should we believe this record at all?
 # MAGIC
-# MAGIC Service evidence (gold/41) asks "does the text say they do X?". This asks "is the record itself
+# MAGIC Service evidence (gold/21) asks "does the text say they do X?". This asks "is the record itself
 # MAGIC coherent?" Each problem multiplies the trust score by a penalty and adds a **plain-language caution**
 # MAGIC that the user sees. Penalties are in `care.TRUST_PENALTIES`.
 # MAGIC

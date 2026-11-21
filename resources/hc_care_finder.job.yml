@@ -1,6 +1,11 @@
-# Care Finder build: facility master -> location lookup -> service evidence -> trust -> index + SQL functions -> demo.
-# Run after hc_kickoff has loaded the vf_* tables:
-#   databricks bundle run hc_care_finder -t free --profile <p>
+# Care Finder, end to end:
+#   Delta Share -> bronze (as received) -> DQ profile -> auto-clean silver -> DQ profile
+#   -> facility_master -> location lookup / service evidence / trust -> index + SQL functions -> demo
+#
+#   databricks bundle run hc_care_finder -t free --profile <p>        (~10 min)
+#
+# The share tables are a job-parameter default, so no --params are needed. (To override
+# source_tables, use `databricks jobs run-now --json`: `bundle run --params` can't pass commas.)
 
 resources:
   jobs:
@@ -8,8 +13,7 @@ resources:
       name: hc_care_finder
       max_concurrent_runs: 1
       tags:
-        project: hc_datathon
-        layer: gold
+        project: care_finder
 
       parameters:
         - name: catalog
@@ -22,33 +26,74 @@ resources:
           default: ${var.gold_schema}
         - name: landing_volume
           default: ${var.landing_volume}
+        - name: source_tables
+          default: ${var.share}.facilities,${var.share}.india_post_pincode_directory,${var.share}.nfhs_5_district_health_indicators
+        - name: table_prefix
+          default: vf_
+        - name: subfolder
+          default: kickoff   # only used when source_tables is blank (files in the landing volume)
+        - name: overrides_json
+          default: "{}"
 
       tasks:
-        - task_key: facility_master
+        # ---- bronze + silver: copy the share, profile it, clean it
+        - task_key: setup
           notebook_task:
-            notebook_path: ../notebooks/silver/13_facility_master.py
+            notebook_path: ../notebooks/00_setup/create_schemas_and_volume.py
+
+        - task_key: ingest_bronze
+          depends_on: [{ task_key: setup }]
+          notebook_task:
+            notebook_path: ../notebooks/bronze/01_ingest_kickoff_data.py
+
+        - task_key: profile_bronze
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: bronze
+              name_like: "{{job.parameters.table_prefix}}*"
+
+        - task_key: clean_silver
+          depends_on: [{ task_key: ingest_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/11_clean_kickoff_tables.py
+
+        - task_key: profile_silver
+          depends_on: [{ task_key: clean_silver }, { task_key: profile_bronze }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/10_profile_tables.py
+            base_parameters:
+              layer: silver
+              name_like: "{{job.parameters.table_prefix}}*"
+
+        # ---- Care Finder
+        - task_key: facility_master
+          depends_on: [{ task_key: clean_silver }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/12_facility_master.py
 
         - task_key: location_lookup
           depends_on: [{ task_key: facility_master }]
           notebook_task:
-            notebook_path: ../notebooks/gold/40_location_lookup.py
+            notebook_path: ../notebooks/gold/20_location_lookup.py
 
         - task_key: service_evidence
           depends_on: [{ task_key: facility_master }]
           notebook_task:
-            notebook_path: ../notebooks/gold/41_service_evidence.py
+            notebook_path: ../notebooks/gold/21_service_evidence.py
 
         - task_key: facility_trust
           depends_on: [{ task_key: facility_master }]
           notebook_task:
-            notebook_path: ../notebooks/gold/42_facility_trust.py
+            notebook_path: ../notebooks/gold/22_facility_trust.py
 
         - task_key: index_and_functions
           depends_on: [{ task_key: location_lookup }, { task_key: service_evidence }, { task_key: facility_trust }]
           notebook_task:
-            notebook_path: ../notebooks/gold/43_care_finder_index.py
+            notebook_path: ../notebooks/gold/23_care_finder_index.py
 
         - task_key: demo
           depends_on: [{ task_key: index_and_functions }]
           notebook_task:
-            notebook_path: ../notebooks/gold/44_care_finder_demo.py
+            notebook_path: ../notebooks/gold/24_care_finder_demo.py

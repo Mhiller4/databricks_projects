@@ -36,10 +36,6 @@ class Config:
         return f"/Volumes/{self.catalog}/{self.bronze_schema}/{self.landing_volume}"
 
     @property
-    def public_landing(self) -> str:
-        return f"{self.landing}/public"
-
-    @property
     def kickoff_landing(self) -> str:
         return f"{self.landing}/kickoff"
 

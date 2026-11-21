@@ -1,8 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Gold 40 · `location_lookup`: what the user types → a point on the map
+# MAGIC # Gold 20 · `location_lookup`: what the user types → a point on the map
 # MAGIC
-# MAGIC One row per (kind, name, state). Used by `resolve_location()` (gold/43).
+# MAGIC One row per (kind, name, state). Used by `resolve_location()` (gold/23).
 # MAGIC
 # MAGIC | kind | from | priority |
 # MAGIC |---|---|---|

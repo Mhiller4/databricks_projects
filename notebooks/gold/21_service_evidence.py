@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Gold 41 · Service evidence: which facilities offer what, and how do we know?
+# MAGIC # Gold 21 · Service evidence: which facilities offer what, and how do we know?
 # MAGIC
 # MAGIC Every claim in `procedure`, `equipment`, `capability` and `description` is matched against each
 # MAGIC service's pattern (rules in `src/hc/care.py`). Specialty tags count as **indirect** evidence only.

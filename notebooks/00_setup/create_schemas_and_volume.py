@@ -7,7 +7,7 @@
 # MAGIC | Object | Purpose |
 # MAGIC |---|---|
 # MAGIC | `hc_bronze` | raw tables, exactly as received (all strings + lineage columns) |
-# MAGIC | `hc_bronze.landing` (volume) | raw files: `public/<source>/...` and `kickoff/...` |
+# MAGIC | `hc_bronze.landing` (volume) | raw files, if the data ever arrives as files: `kickoff/...` |
 # MAGIC | `hc_silver` | cleaned, typed, standardized, joinable tables |
 # MAGIC | `hc_gold` | analysis/model-ready tables, data-quality scorecards, decision outputs |
 # MAGIC
@@ -22,7 +22,7 @@
 
 comments = {
     "bronze": "Raw data as received: all-string columns + _source_file/_ingested_at lineage",
-    "silver": "Cleaned, typed, standardized (FIPS/ZIP) tables; one documented grain per table",
+    "silver": "Cleaned, typed, standardized (PIN, state, coordinates) tables; one documented grain per table",
     "gold": "Analysis- and model-ready tables, DQ scorecards, and decision outputs",
 }
 for layer, comment in comments.items():
@@ -31,9 +31,9 @@ for layer, comment in comments.items():
 
 spark.sql(
     f"CREATE VOLUME IF NOT EXISTS {q(cfg.catalog, cfg.bronze_schema, cfg.landing_volume)} "
-    "COMMENT 'Landing zone for raw files (public/ and kickoff/)'"
+    "COMMENT 'Landing zone for raw files (kickoff/)'"
 )
-for sub in (cfg.public_landing, cfg.kickoff_landing):
+for sub in (cfg.kickoff_landing,):
     os.makedirs(sub, exist_ok=True)
     print("folder ok:", sub)
 

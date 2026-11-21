@@ -1,7 +1,7 @@
 # Model template job: any table + target -> dummy / linear / LightGBM -> SHAP -> MLflow -> gold decision tables.
-# Defaults run the pre-kickoff county overdose "higher than expected" model. Point it elsewhere with:
+# No default table: pass source_table and target_col, e.g.
 #   databricks bundle run hc_model -t free --profile <p> \
-#     --params source_table=kickoff_encounters_with_county,target_col=readmitted_30d,id_cols=encounter_id,group_col=patient_id,exclude_cols=
+#     --params source_table=<gold table>,target_col=<col>,id_cols=<ids>,exclude_cols=<leaky globs>,group_col=<col or blank>
 
 resources:
   jobs:
@@ -9,7 +9,7 @@ resources:
       name: hc_model
       max_concurrent_runs: 2
       tags:
-        project: hc_datathon
+        project: care_finder
         layer: gold
 
       parameters:
@@ -24,19 +24,19 @@ resources:
         - name: landing_volume
           default: ${var.landing_volume}
         - name: source_table
-          default: county_context
+          default: ""
         - name: target_col
-          default: overdose_deaths_per_100k
+          default: ""
         - name: task
           default: auto
         - name: positive_class
           default: ""
         - name: id_cols
-          default: fips,state_abbr,state_name,county_name
+          default: ""
         - name: exclude_cols
-          default: overdose_*,rucc_description
+          default: ""
         - name: group_col
-          default: state_abbr
+          default: ""
         - name: test_size
           default: "0.2"
         - name: n_folds

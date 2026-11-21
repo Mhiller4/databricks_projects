@@ -6,10 +6,10 @@ clean_dataframe(df, overrides) does, in order, and logs every step:
   3. small-cell suppression tokens ('*', 'Suppressed', '<10', ...) -> NULL
      plus a <col>_is_suppressed flag (suppression is NOT missing-at-random)
   4. infer types on a sample: bigint / double / boolean / date / timestamp / string
-     - identifier-like columns (id, code, fips, zip, npi, icd, ...) and values with
+     - identifier-like columns (id, code, pin, phone, ...) and values with
        leading zeros stay strings
      - '$1,234.50' and '45%' are parsed as numbers
-  5. standardize FIPS / ZIP columns
+  5. standardize PIN code columns (6-digit Indian PINs)
   6. drop all-null columns
   7. de-duplicate (exact rows, or latest-per-primary-key)
 
@@ -247,31 +247,18 @@ def clean_dataframe(df: DataFrame, overrides: dict | None = None, sample_rows: i
         if s["type"] == "string" and s["reason"] not in ("mixed / free text", "no non-null values in sample"):
             note(c, "kept_as_string", s["reason"])
 
-    # 5. geography standardization on identifier columns we kept as strings
+    # 5. PIN code standardization: decided by the values, not the column name
     for c in df.columns:
-        lc = c.lower()
         if c in cast_cols or c in META_COLS:
             continue
-        if "fips" in lc or lc in ("geoid", "county_geoid"):
-            is_state = "state" in lc and "county" not in lc
-            fn = geo.state_fips2 if is_state or (stats.get(c, {}).get("maxlen", 5) or 5) <= 2 else geo.fips5
-            df = df.withColumn(c, fn(F.col(c)))
-            note(c, "standardized_fips", "zero-padded to 2 (state) or 5 (county) digits")
-        elif re.search(r"(^|_)(zip|zipcode|zip_code|postal_code|postcode|zcta|zcta5|pin|pincode|pin_code)($|_)", lc):
-            # Decide by the values, not the name: a 'postcode' can be a US ZIP or a 6-digit Indian PIN.
-            v = F.regexp_replace(F.trim(F.col(c).cast("string")), r"\.0+$", "")
-            shares = df.select(
-                F.avg(F.when(v.isNotNull(), v.rlike(r"^\d{3,5}(-?\d{4})?$").cast("int"))).alias("us"),
-                F.avg(F.when(v.isNotNull(), F.regexp_replace(v, r"\s", "").rlike(r"^[1-9]\d{5}$").cast("int"))).alias("pin"),
-            ).first()
-            if (shares["pin"] or 0) >= 0.8:
+        if re.search(r"(^|_)(postal_code|postcode|pin|pincode|pin_code|zip|zipcode|zip_code)($|_)", c.lower()):
+            v = F.regexp_replace(F.regexp_replace(F.trim(F.col(c).cast("string")), r"\.0+$", ""), r"\s", "")
+            share = df.select(F.avg(F.when(v.isNotNull(), v.rlike(r"^[1-9]\d{5}$").cast("int"))).alias("pin")).first()["pin"] or 0
+            if share >= 0.8:
                 df = df.withColumn(c, geo.pin6(F.col(c)))
-                note(c, "standardized_pin", f"{shares['pin']:.1%} look like 6-digit Indian PIN codes; spaces removed, invalid -> NULL")
-            elif (shares["us"] or 0) >= 0.8:
-                df = df.withColumn(c, geo.zip5(F.col(c)))
-                note(c, "standardized_zip", "trimmed to 5-digit ZIP, leading zeros restored")
+                note(c, "standardized_pin", f"{share:.1%} look like 6-digit Indian PIN codes; spaces removed, invalid -> NULL")
             else:
-                note(c, "kept_postcode_as_is", f"mixed formats (US-like {shares['us'] or 0:.0%}, PIN-like {shares['pin'] or 0:.0%})")
+                note(c, "kept_postcode_as_is", f"only {share:.0%} look like 6-digit PIN codes")
 
     # 6. drop all-null columns
     if o.get("drop_empty_columns", True):

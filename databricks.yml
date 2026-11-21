@@ -1,8 +1,8 @@
-# Healthcare Datathon bundle
+# Care Finder bundle (CMU Datathon Fall 2026, Virtue Foundation India facilities)
 #
 # Deploy:   databricks bundle deploy -t free --profile <your-profile>
-# Run:      databricks bundle run hc_public_sources -t free --profile <your-profile>
-#           databricks bundle run hc_kickoff -t free --profile <your-profile>
+# Run:      databricks bundle run hc_care_finder -t free --profile <your-profile>   (share -> gold, ~10 min)
+#           databricks bundle run hc_model -t free --profile <your-profile> --params source_table=...,target_col=...
 #
 # Targets
 #   free       Databricks Free Edition (default). Serverless only, catalog `workspace`.
@@ -33,6 +33,9 @@ variables:
   landing_volume:
     description: Managed volume (in bronze schema) for raw files
     default: landing
+  share:
+    description: Delta Share catalog.schema holding the challenge tables
+    default: databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset
 
 include:
   - resources/*.yml

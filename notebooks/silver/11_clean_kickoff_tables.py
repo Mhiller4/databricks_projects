@@ -41,7 +41,7 @@ if tables_arg:
 else:
     tables = sorted(r.tableName for r in spark.sql(f"SHOW TABLES IN {cfg.schema('bronze')} LIKE '{prefix}*'").collect())
 if not tables:
-    raise RuntimeError(f"No bronze tables matching {prefix}*. Run bronze/03_ingest_kickoff_files first.")
+    raise RuntimeError(f"No bronze tables matching {prefix}*. Run bronze/01_ingest_kickoff_data first.")
 print("Cleaning:", tables)
 
 # COMMAND ----------
@@ -80,18 +80,7 @@ for t in tables:
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Domain-specific cleaning (fill in Saturday)
-# MAGIC Examples worth checking in healthcare data:
-# MAGIC * impossible values: age < 0 or > 115, LOS < 0, discharge before admit, BMI > 100
-# MAGIC * units: lbs vs kg, mg/dL vs mmol/L, minutes vs hours
-# MAGIC * code systems: ICD-9 vs ICD-10 mixed, codes with or without dots
-# MAGIC * sentinel values: 999, 9999, 0 meaning "unknown"
-# MAGIC * free-text categories: use `ai_classify()` / `ai_extract()` to normalize them
-# MAGIC * geography: add `county_fips` with `hc.geo.attach_fips_by_zip` / `attach_fips_by_name` (see gold/21)
-
-# COMMAND ----------
-
-# Example (uncomment and adapt):
-# df = spark.table(cfg.silver("kickoff_encounters"))
-# df = df.withColumn("age", F.when(F.col("age").between(0, 115), F.col("age")))
-# write_table(df, cfg.silver("kickoff_encounters"))
+# MAGIC ### Domain-specific cleaning
+# MAGIC The generic cleaner above only fixes types, null tokens, PIN codes and duplicates. The facility-specific
+# MAGIC work (state names, PIN / coordinate checks, shifted-column rows, claim lists) is in
+# MAGIC `silver/12_facility_master`.

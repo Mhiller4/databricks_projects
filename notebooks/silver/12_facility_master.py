@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Silver 13 · `facility_master`: one trustworthy-as-possible row per facility
+# MAGIC # Silver 12 · `facility_master`: one trustworthy-as-possible row per facility
 # MAGIC
 # MAGIC Input: `hc_silver.vf_facilities` (auto-cleaned) + `hc_silver.vf_india_post_pincode_directory`.
 # MAGIC
@@ -13,7 +13,7 @@
 # MAGIC | rows with shifted columns | `is_malformed` flag |
 # MAGIC | the same facility listed twice | `dup_reason` (shared `cluster_id`, or same name + PIN) |
 # MAGIC
-# MAGIC Nothing is deleted here: every record stays, with flags. The trust score (gold/42) decides how much they count.
+# MAGIC Nothing is deleted here: every record stays, with flags. The trust score (gold/22) decides how much they count.
 
 # COMMAND ----------
 

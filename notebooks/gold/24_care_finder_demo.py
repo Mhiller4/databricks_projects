@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # Gold 44 · Care Finder demo: the brief's scenarios, end to end
+# MAGIC # Gold 24 · Care Finder demo: the brief's scenarios, end to end
 # MAGIC
 # MAGIC Change the two widgets to ask your own question. Each result shows **why** (evidence quoted from the
 # MAGIC facility record, with its source field), **how** (the score components), and **cautions**.

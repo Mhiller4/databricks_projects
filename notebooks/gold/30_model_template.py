@@ -18,14 +18,11 @@
 # MAGIC | `target_col` | what to predict. 2 values → classification; numeric → regression |
 # MAGIC | `positive_class` | makes a categorical target binary, e.g. `Expired`, `Readmitted` |
 # MAGIC | `id_cols` | carried to the output, never used as features |
-# MAGIC | `exclude_cols` | globs for leakage / other outcomes, e.g. `overdose_*,discharge_*` |
+# MAGIC | `exclude_cols` | globs for leakage / other outcomes, e.g. `flag_*,trust_*` |
 # MAGIC | `group_col` | keep groups on one side of every split (state, hospital, patient) |
 # MAGIC | `register_as` | blank = don't register; otherwise a UC model name in the gold schema |
 # MAGIC
-# MAGIC **Default run (works before kickoff):** which counties have more overdose deaths than their social,
-# MAGIC health and access profile predicts? Split by state so the score reflects unseen states.
-# MAGIC Note: counties with a suppressed count (1-9 deaths) have a NULL target and are left out, which skews
-# MAGIC the training set toward larger counties. Say that out loud in the video.
+# MAGIC There is no default table: `source_table` and `target_col` are required.
 
 # COMMAND ----------
 
@@ -57,13 +54,13 @@ from hc.naming import snake
 
 importlib.reload(hm)
 
-source_table = widget(dbutils, "source_table", "county_context", "table (gold name or catalog.schema.table)")
-target_col = widget(dbutils, "target_col", "overdose_deaths_per_100k", "target column")
+source_table = widget(dbutils, "source_table", "", "table (gold name or catalog.schema.table)")
+target_col = widget(dbutils, "target_col", "", "target column")
 task_in = widget(dbutils, "task", "auto", "auto | binary | regression")
 positive_class = widget(dbutils, "positive_class", "", "binary from a category, e.g. Expired")
-id_cols = hm.parse_list(widget(dbutils, "id_cols", "fips,state_abbr,state_name,county_name", "id / display columns"))
-exclude = hm.parse_list(widget(dbutils, "exclude_cols", "overdose_*,rucc_description", "exclude globs (leakage)"))
-group_col = widget(dbutils, "group_col", "state_abbr", "group split column (blank = random)")
+id_cols = hm.parse_list(widget(dbutils, "id_cols", "", "id / display columns"))
+exclude = hm.parse_list(widget(dbutils, "exclude_cols", "", "exclude globs (leakage)"))
+group_col = widget(dbutils, "group_col", "", "group split column (blank = random)")
 test_size = float(widget(dbutils, "test_size", "0.2"))
 n_folds = int(widget(dbutils, "n_folds", "5"))
 max_rows = int(widget(dbutils, "max_rows", "500000", "row cap (sampled above this)"))
@@ -71,6 +68,8 @@ run_label = widget(dbutils, "run_name", "", "blank = <table>__<target>")
 experiment = widget(dbutils, "experiment", "", "blank = /Users/<you>/hc_datathon_models")
 register_as = widget(dbutils, "register_as", "", "UC model name to register (blank = skip)")
 
+if not source_table or not target_col:
+    raise ValueError("Set source_table and target_col (widgets or job --params).")
 table_fqn = source_table if "." in source_table else cfg.gold(source_table)
 run_name = run_label or f"{source_table.split('.')[-1]}__{target_col}"
 print(f"table={table_fqn}  target={target_col}  run={run_name}")

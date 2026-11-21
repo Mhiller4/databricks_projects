@@ -1,13 +1,14 @@
-"""Healthcare datathon helpers.
+"""Care Finder helpers (CMU Datathon, Virtue Foundation India facilities).
 
 Modules:
-    sources  - registry of public datasets (stdlib only; also used by scripts/)
     naming   - column-name sanitizing (stdlib only)
     config   - widget/job-parameter config for notebooks
     io       - download + read-any-file + write-bronze helpers
-    geo      - FIPS / ZIP / county-name standardization and joins
+    geo      - PIN code standardization and haversine distance
     clean    - generic "messy data" cleaner with an audit log
     profile  - data-quality profiling (scorecard) for any table
+    care     - Care Finder rules: services, evidence weights, trust penalties, confidence
+    model    - model template helpers (baseline / LightGBM / SHAP)
 
 Keep this package importable without pyspark so local scripts and tests work.
 """
