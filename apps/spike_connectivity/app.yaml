@@ -3,4 +3,4 @@
 command: ["python", "app.py"]
 env:
   - name: LIVEKIT_URL
-    value: "wss://REPLACE-WITH-YOUR-PROJECT.livekit.cloud"
+    value: "wss://databricks-hackathon-5p5od1hh.livekit.cloud"
