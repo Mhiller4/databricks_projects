@@ -26,6 +26,9 @@
 ## Hour 2+: question → model → decision
 - Pick the outcome that matters (death, readmission, overdose, missed care) and the lever a decision
   maker controls (where to put clinics, naloxone, staff, outreach).
+- Build one gold table at the grain of the decision (one row per patient / county / facility) with the
+  outcome column, then run `hc_model` on it (see README → Modeling). Check the leakage scan first; read
+  `pred_<run>` sorted by `risk_rank` / `excess_rank` for the decision list.
 - Keep the screenshots for the video: before/after DQ table, match rates, suppression bias.
 
 ## Messy-data checklist (healthcare specific)

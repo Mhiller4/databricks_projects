@@ -28,7 +28,8 @@ landing volume ──► hc_bronze (as received) ──► hc_silver (clean, typ
 | `notebooks/00_setup/` | create schemas + landing volume |
 | `notebooks/bronze/` | `01` fetch public · `02` ingest public · `03` ingest kickoff files |
 | `notebooks/silver/` | `10` DQ profile · `11` auto-clean kickoff · `12` clean public sources |
-| `notebooks/gold/` | `20` county_context · `21` link kickoff data to counties |
+| `notebooks/gold/` | `20` county_context · `21` link kickoff data to counties · `30` model template |
+| `resources/hc_model.job.yml` | job: any table + target → dummy / linear / LightGBM → SHAP → MLflow → gold decision tables |
 | `scripts/fetch_public_sources.py` | laptop fallback if the workspace can't reach the internet |
 | `docs/KICKOFF_RUNBOOK.md` | **Saturday-morning checklist** |
 
@@ -74,6 +75,21 @@ no star rating.
 * `hc_gold.dq_table_summary`, `hc_gold.dq_profile`: before/after data-quality scorecard
 * `hc_gold.dq_cleaning_log`: every automated cleaning decision, per column
 * `hc_bronze._column_map`: original source column names
+* `hc_gold.pred_<run>`: per-row out-of-fold score, rank, and top 3 reasons (from `gold/30`)
+* `hc_gold.model_leaderboard`, `hc_gold.model_feature_importance`: every model run, keyed by MLflow `run_id`
+
+## Modeling
+
+```bash
+# default: counties with more overdose deaths than their profile predicts (split by state)
+databricks bundle run hc_model -t free --profile <name>
+# any other table / target
+databricks bundle run hc_model -t free --profile <name> \
+  --params source_table=<gold table>,target_col=<col>,id_cols=<ids>,exclude_cols=<leaky globs>,group_col=<col or blank>
+```
+
+Note: `--params` replaces a parameter's default, so pass `exclude_cols` in full each time.
+Runs appear in MLflow under `/Users/<you>/hc_datathon_models`.
 
 ## Tests
 
