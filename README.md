@@ -11,6 +11,7 @@ Edition and work for non-technical users such as community health workers and NG
 
 * Full brief, requirements checklist and data findings: [docs/CHALLENGE.md](docs/CHALLENGE.md)
 * Product requirements: [openspec/specs/care-finder/spec.md](openspec/specs/care-finder/spec.md)
+* **Next up, the web app (handoff spec):** [openspec/changes/add-web-app/](openspec/changes/add-web-app/proposal.md)
 
 ### Challenge data in this workspace
 
@@ -71,7 +72,9 @@ databricks bundle run hc_care_finder -t free --profile <name>
 | `notebooks/gold/` | `20` location lookup · `21` service evidence · `22` facility trust · `23` index + SQL functions · `24` demo · `30` model template |
 | `src/hc/` | shared library: `care` (Care Finder rules), `clean`, `profile`, `geo`, `io`, `naming`, `config`, `model` |
 | `notebooks/_setup.py` | `%run ../_setup` → `cfg`, helpers on the path |
-| `apps/` | Databricks App (the health-worker interface, next) |
+| `backend/` | FastAPI decision engine over the gold Parquet export: `/api/recommend`, `/api/locations`, `/ws/live` (tests: `.venv/bin/pytest -q`) |
+| `voice_agent/` | LiveKit voice agent (Gemini Live): greeter → provider / patient personas, one grounded tool |
+| `apps/` | old placeholder; the web app is specified in `openspec/changes/add-web-app/` |
 | `docs/CHALLENGE.md` · `openspec/` | the brief, data findings, product spec |
 
 ## Setup (once per person)

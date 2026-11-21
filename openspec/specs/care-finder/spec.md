@@ -115,6 +115,6 @@ within the Free Edition app and warehouse limits.
    - number of sources
 5. **Scoring:** **done**, in `care_finder_index` + `recommend_facilities()` + `resolve_location()`. `score = evidence × type fit × trust × exp(−km / tau)`; the weights are in `src/hc/care.py` and `gold.service_catalog`.
    A model (e.g. one that predicts whether a claim is corroborated) could come later, if time allows.
-6. **Interface:** a Databricks App for the health-worker workflow, possibly with a Genie space for planners'
+6. **Interface:** voice agent built (`voice_agent/`, `backend/`); web app specified in [openspec/changes/add-web-app/](../../changes/add-web-app/proposal.md). A Databricks App for the health-worker workflow, possibly with a Genie space for planners'
    open questions. Optionally an LLM (`ai_query`) to map free-text services and write the explanation.
    Any explanation must quote only retrieved evidence.
