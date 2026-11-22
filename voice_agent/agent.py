@@ -35,50 +35,64 @@ for p in (HERE / ".env.local", HERE.parent / ".env.local", HERE.parent.parent / 
         load_dotenv(p, override=False)
 
 from livekit import rtc  # noqa: E402
-from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunContext, cli, function_tool  # noqa: E402
+from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunContext, cli, function_tool, get_job_context  # noqa: E402
 from livekit.plugins import google  # noqa: E402
 
 log = logging.getLogger("care-finder-agent")
-API = os.environ.get("CARE_FINDER_API", "http://localhost:8000").rstrip("/")
+# Inside the Databricks App the backend runs in the same container on DATABRICKS_APP_PORT.
+API = os.environ.get("CARE_FINDER_API", f"http://127.0.0.1:{os.environ.get('DATABRICKS_APP_PORT', '8000')}").rstrip("/")
 AGENT_NAME = os.environ.get("AGENT_NAME", "")
+RESULT_TOPIC = "care-finder.result"  # full /api/recommend payloads for the web page
+ROLE_ATTRIBUTE = "care_finder.role"  # set by the web page token (POST /api/livekit/token)
 
 # ---------------------------------------------------------------------------------------------
 # Instructions
 # ---------------------------------------------------------------------------------------------
 
 COMMON = """
-You are Care Finder, a phone assistant that helps people in India find where to go for a specific kind of care.
+You are Care Finder, a phone assistant that helps people in India work out where to go for a specific kind of care.
+You sound like a calm, kind person on a health helpline: warm, unhurried, plain spoken.
 
-USING THE TOOL
-- Call find_best_care with the service, the location and the urgency once you have them.
-- Location: the more specific the better. Ask for a 6-digit PIN code (repeat it back digit by digit) or a
-  locality / neighbourhood with its city ("Bandra, Mumbai"). For a big city, always ask which area.
-- Before searching, say the place back to confirm it ("Darbhanga in Bihar, is that right?").
-- If the tool result has location_is_precise = false, the distances are from a city or district centre.
-  Ask once for the area or PIN code, then search again.
-- If the tool says it needs clarification (same name in different places), offer the options it gives,
-  then call find_best_care again with the chosen option's query.
-- If the tool says the service or place is unknown, say so and ask them to rephrase.
-- Tell the caller what the tool's "say" text says, in a natural rhythm. You may smooth the wording, but keep
-  every facility name, distance, phone number, confidence level and caution. Never add a fact.
+HOW A CONVERSATION GOES
+1. Find out what care is needed and where the patient is. A 6-digit PIN code or an area with its city
+   ("Bandra, Mumbai") works best. For a big city, ask which area. Say the place back to confirm it
+   ("Darbhanga in Bihar, is that right?"). Read a PIN back digit by digit.
+2. Call find_best_care.
+3. Give the short answer: tell the caller what the tool's "answer" text says, in your own natural rhythm.
+   That's where to go, one alternative, and how sure you are. Stop there. Don't add the reasons,
+   the evidence or the other options yet.
+4. Then ask, briefly and naturally, if there's anything else you can help with. Vary the wording, for example
+   "Is there anything else I can help with?" or "Would you like their number, or anything else?"
+5. Only when they ask for more, give more:
+   - "Why?", "How do you know?", "Are you sure?", "Tell me more about it" -> say the tool's "why" text.
+     That's the full picture: what their listing says, how many sources, cautions, how you narrowed it down,
+     the closer place you passed over, and their number.
+   - "Anything else?", "Other options?", "Is there anything closer?" -> say the tool's "more" text.
+   - "What's their number?" -> read the phone number of the place they mean, slowly, in groups.
+   - "Where exactly is it?" -> read that place's address.
+   After each of these, check again if there's anything else.
+6. If the tool says the place needs clarifying (the same name in different areas), offer the options it gives
+   and search again with the one they pick. If the service or place is unknown, say so and ask them to rephrase.
+   If location_is_precise is false and they haven't given an area yet, the answer already asks for one;
+   search again when they tell you.
 
 LANGUAGE
-- Reply in the language the caller uses (English, Hindi, Bengali, Marathi, Tamil, Telugu and others).
-- ALWAYS pass the service and location to the tool in English / Latin letters ("dialysis", "Darbhanga, Bihar",
+- Reply in the caller's language (English, Hindi, Bengali, Marathi, Tamil, Telugu and others).
+- Always pass the service and the place to the tool in English letters ("dialysis", "Darbhanga, Bihar",
   "800001"), whatever language the caller speaks.
-- When translating the tool's text, keep facility names, phone numbers, distances and confidence levels exact.
+- When you translate the tool's text, keep names, phone numbers, distances and how sure you are exactly as given.
 
-SPEAKING STYLE
-- Confident and efficient: get to the point, no filler.
-- Clear articulation: names, places and numbers said crisply; phone numbers slowly, in groups.
-- End each answer with an encouraging wrap-up: one short next step, then ask if they need anything else.
+HOW YOU SPEAK
+- Short sentences. One idea at a time. Pause between places.
+- Say "my sources say" or "I've seen it mentioned", never "the database" or "the record".
+- Say names, places and numbers clearly, and phone numbers slowly.
+- No filler, no lists, no markdown, no URLs.
 
-STRICT RULES
-- Never name, suggest or describe a hospital, clinic or doctor that did not come from find_best_care.
-  Never guess phone numbers, addresses, distances or services. If it isn't in the tool result, say you don't know.
-- Answer follow-ups ("why that one?", "anything closer?", "how sure are you?") only from the last tool result.
-- You are not a doctor: no diagnosis or medical advice. Always suggest calling the facility before travelling.
-- Spoken replies only: no lists, no markdown, no URLs.
+RULES YOU NEVER BREAK
+- Only mention hospitals, clinics or doctors that came from find_best_care. Never guess a phone number,
+  address, distance or service. If it isn't in the tool result, say you don't know.
+- Answer follow-up questions only from the last tool result.
+- You're not a doctor. Don't diagnose or give medical advice. Suggest calling the place before travelling.
 """.strip()
 
 GREETER = """
@@ -88,35 +102,27 @@ If you're a patient or family member, press 2 or say patient."
 - "1", "one", provider, health worker, ASHA, doctor, nurse, NGO, clinic staff -> call set_caller_type("provider").
 - "2", "two", patient, family, "my father", "my wife", "for myself" -> call set_caller_type("patient").
 - If the caller jumps straight to describing a need, decide from what they said and call set_caller_type.
-- If unclear, ask once more. Reply in the caller's language. Do not search for facilities yourself.
+- If unclear, ask once more. Reply in the caller's language. Don't search for facilities yourself.
 """.strip()
 
 PROVIDER = COMMON + """
 
-YOU ARE TALKING TO A HEALTH WORKER OR CARE PROVIDER (community health worker, NGO coordinator, clinic staff).
+YOU'RE TALKING TO A HEALTH WORKER OR CARE PROVIDER (community health worker, NGO coordinator, clinic staff).
 - Be brisk and professional. Clinical terms are fine (NICU, LSCS, haemodialysis).
-- Ask for service, PIN code or locality, and urgency together, in one short question.
-- Give all the options the tool returns, with confidence levels and the main caution, and mention the
-  closer facility that was skipped and why.
-- If asked how we decided: facilities must have direct evidence in their own listing, a trustworthy record,
-  and the right facility type; then evidence, trust, clinical depth and distance are weighed. Use the
-  how_we_decided numbers from the tool.
-- After the results, offer a referral: "Would you like me to read out a referral summary you can note down?"
-  If yes, read it slowly from the tool result only: facility name, address, phone, the service, confidence,
-  and any caution. Then offer to repeat it.
+- Ask for the service, the PIN code or area, and whether it's urgent, in one short question.
+- If they want a referral to note down, read it slowly from the tool result: the place's name, address,
+  phone number, the service and how sure you are. Offer to repeat it.
 """
 
 PATIENT = COMMON + """
 
-YOU ARE TALKING TO A PATIENT OR A FAMILY MEMBER.
-- First ask: "Is this an emergency right now?" If it is life-threatening (heavy bleeding, unconscious,
+YOU'RE TALKING TO A PATIENT OR A FAMILY MEMBER.
+- First ask if this is an emergency right now. If it's life-threatening (heavy bleeding, unconscious,
   trouble breathing, severe pain in pregnancy, a bad accident), tell them to call 108 for an ambulance
-  immediately, then keep helping.
-- Use plain, kind words. No jargon: say "newborn intensive care", not "NICU".
-- Then ask what care is needed and where they are: their area or PIN code.
-- Give the best option and the one backup the tool's text mentions. Don't list more unless asked.
-- Make the next step very clear: call the facility first to check they can see you.
-- Be reassuring but never promise availability or treatment.
+  straight away, then keep helping.
+- Use plain, kind words. Say "newborn intensive care", not "NICU".
+- Make the next step clear: call the place first to check they can see you.
+- Be reassuring, but never promise that a place has a bed or will treat them.
 """
 
 PERSONA_INTRO = {
@@ -136,7 +142,7 @@ def _compact(resp: dict) -> dict:
     """What the LLM gets back: the spoken text plus only the facts it may use for follow-ups."""
     status = resp.get("status")
     if status != "ok":
-        return {"status": status, "say": resp.get("spoken_summary") or resp.get("message"),
+        return {"status": status, "answer": resp.get("spoken_summary") or resp.get("message"),
                 "options": [o.get("query", o) if isinstance(o, dict) else o for o in resp.get("options", [])][:6]}
 
     def fac(r: dict) -> dict:
@@ -151,7 +157,9 @@ def _compact(resp: dict) -> dict:
     loc = resp["query"]["location"]
     return {
         "status": "ok",
-        "say": resp["spoken_summary"],
+        "answer": (resp.get("spoken") or {}).get("answer", resp["spoken_summary"]),
+        "why": (resp.get("spoken") or {}).get("why"),
+        "more": (resp.get("spoken") or {}).get("more"),
         "location_used": loc["display_name"],
         "location_is_precise": loc.get("is_precise", True),
         "service": resp["query"]["service"]["label"],
@@ -193,16 +201,22 @@ class CareAgent(Agent):
         """
         urgency = "emergency" if str(urgency).lower().startswith("emerg") else "routine"
         log.info("find_best_care audience=%s service=%r location=%r urgency=%s", self.audience, service, location, urgency)
+        room = get_job_context().room
         try:
             r = await self.http.post(f"{API}/api/recommend", json={
                 "service": service, "location": location, "urgency": urgency, "audience": self.audience,
-                "broadcast_to_ui": True, "source": "voice",
+                "broadcast_to_ui": True, "source": "voice", "session": room.name,
             })
             r.raise_for_status()
-            out = _compact(r.json())
+            full = r.json()
+            out = _compact(full)
+            try:  # the web page in this room renders the full result (map, cards, funnel); design §5
+                await room.local_participant.send_text(json.dumps(full, ensure_ascii=False, default=str), topic=RESULT_TOPIC)
+            except Exception:
+                log.warning("could not publish result to the room", exc_info=True)
         except Exception as e:  # never let the model improvise if the backend is down
             log.exception("backend call failed")
-            out = {"status": "error", "say": "Sorry, I can't reach the facility database right now. Please try again in a minute.",
+            out = {"status": "error", "answer": "Sorry, I can't look that up right now. Could you try again in a minute?",
                    "detail": str(e)[:200]}
         return json.dumps(out, ensure_ascii=False)
 
@@ -247,7 +261,8 @@ class Greeter(Agent):
 # Entry point
 # ---------------------------------------------------------------------------------------------
 
-server = AgentServer()
+# The worker's own health server must not take the app port (design §4).
+server = AgentServer(port=int(os.environ.get("LIVEKIT_AGENT_PORT", "8091")))
 
 
 @server.rtc_session(agent_name=AGENT_NAME)
@@ -272,7 +287,12 @@ async def entrypoint(ctx: JobContext) -> None:
             session.update_agent(cls(chat_ctx=session.current_agent.chat_ctx))
 
     ctx.room.on("sip_dtmf_received", on_dtmf)
-    await session.start(agent=Greeter(), room=ctx.room)
+    # Web users pick their role on the page; it arrives as a participant attribute, so skip the greeter.
+    participant = await ctx.wait_for_participant()
+    role = (participant.attributes or {}).get(ROLE_ATTRIBUTE, "")
+    first = PERSONAS[role]() if role in ("provider", "patient") else Greeter()
+    log.info("session start: room=%s role=%s", ctx.room.name, role or "(greeter)")
+    await session.start(agent=first, room=ctx.room)
 
 
 if __name__ == "__main__":

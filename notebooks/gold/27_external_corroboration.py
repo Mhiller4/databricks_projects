@@ -35,8 +35,34 @@ nhp = spark.table(S("ext_hospital_directory")).where("pin IS NOT NULL").select(
     "nhp_id", F.col("name").alias("nhp_name"), "pin", F.col("lat").alias("nhp_lat"), F.col("lon").alias("nhp_lon"),
     "ownership", "care_type", "district_code", F.col("district").alias("nhp_district"), F.col("state").alias("nhp_state"),
 )
-pairs = ours.join(nhp, "pin").toPandas()
-print(f"{len(pairs):,} same-PIN candidate pairs")
+# Candidate pairs, pre-filtered in Spark: same PIN AND (a shared distinctive word OR the same spacing-free name).
+# Busy PINs (central Mumbai) have hundreds of hospitals on both sides, so a plain same-PIN join is millions of
+# pairs. The exact rule (ext.names_match, unit-tested) is applied to the survivors below.
+STOP, WEAK = sorted(ext.NAME_STOPWORDS), sorted(ext.WEAK_TOKENS)
+
+
+def words(c):
+    return F.split(F.upper(F.coalesce(c, F.lit(""))), "[^A-Z0-9]+")
+
+
+def strong_tokens(c):
+    return F.array_distinct(F.filter(words(c), lambda t: (F.length(t) > 1) & ~t.isin(STOP) & ~t.isin(WEAK)))
+
+
+def compact(c):
+    return F.array_join(F.filter(words(c), lambda t: (F.length(t) > 0) & ~t.isin(STOP)), "")
+
+
+ours_tok = ours.select("facility_id", "pin", F.explode(strong_tokens(F.col("name"))).alias("tok"))
+nhp_tok = nhp.select("nhp_id", "pin", F.explode(strong_tokens(F.col("nhp_name"))).alias("tok"))
+by_token = ours_tok.join(nhp_tok, ["pin", "tok"]).select("facility_id", "nhp_id")
+ours_cmp = ours.select("facility_id", "pin", compact(F.col("name")).alias("cmp")).where(F.length("cmp") >= ext.COMPACT_MIN_LEN)
+nhp_cmp = nhp.select("nhp_id", "pin", compact(F.col("nhp_name")).alias("cmp"))
+by_compact = ours_cmp.join(nhp_cmp, ["pin", "cmp"]).select("facility_id", "nhp_id")
+cand = by_token.unionByName(by_compact).distinct()
+
+pairs = cand.join(ours, "facility_id").join(nhp, ["nhp_id", "pin"]).toPandas()
+print(f"{len(pairs):,} candidate pairs (same PIN + shared distinctive word or same compact name)")
 
 
 def km(a_lat, a_lon, b_lat, b_lon):

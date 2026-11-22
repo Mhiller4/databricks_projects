@@ -218,7 +218,18 @@ async def ws_live(ws: WebSocket):
 
 
 # Serve the built React app (frontend/dist) at / when it exists
-_DIST = Path(__file__).resolve().parents[2] / "frontend" / "dist"
+_HERE = Path(__file__).resolve()
+# repo layout: <repo>/backend/app/main.py -> <repo>/frontend/dist ; assembled app: <app>/app/main.py -> <app>/frontend/dist
+_DIST = next((p for p in (Path(os.environ.get("CARE_FINDER_STATIC", "")), _HERE.parents[2] / "frontend" / "dist",
+                          _HERE.parents[1] / "frontend" / "dist") if str(p) not in ("", ".") and (p / "index.html").exists()),
+             _HERE.parents[2] / "frontend" / "dist")
+if not (_DIST / "index.html").exists():
+    from fastapi.responses import RedirectResponse
+
+    @app.get("/", include_in_schema=False)
+    def root():  # no web page built yet: show the API docs
+        return RedirectResponse("/docs")
+
 if _DIST.exists():
     app.mount("/assets", StaticFiles(directory=_DIST / "assets"), name="assets")
 

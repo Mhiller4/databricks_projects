@@ -31,7 +31,7 @@ except ImportError:  # repo layout: the shared module lives under src/
     from hc import care  # noqa: E402  (shared with the Databricks notebooks; no Spark imports)
 
 from .data import Store  # noqa: E402
-from .summary import spoken_summary  # noqa: E402
+from .summary import spoken  # noqa: E402
 
 # ---------------------------------------------------------------------------------------------
 # Rules (all shown to the user in the HOW section)
@@ -131,20 +131,24 @@ def resolve_location(store: Store, q: str | dict) -> list[dict]:
         return []
 
     # qualifiers: a state narrows by state; anything else narrows to places near that place
-    state_key, anchor = None, None
+    state_key, anchor, qual_key = None, None, None
     for qual in parts[1:]:
         qk = care.STATE_ALIASES.get(care.key(qual), care.key(qual))
         if qk in _states(store):
             state_key = qk
         elif anchor is None:
+            qual_key = qk
             hits = _lookup(store, qk, prefix=False) or _lookup(store, qk, prefix=True)
             hits = [h for h in hits if not state_key or h["state_key"] == state_key]
             anchor = hits[0] if hits else None
 
     def keep(rows):
         rows = [r for r in rows if not state_key or r["state_key"] == state_key]
-        if anchor:
-            rows = [r for r in rows if _km_between(r, anchor) <= QUALIFIER_RADIUS_KM]
+        if anchor or qual_key:
+            # near the qualifier place, OR in a district whose name starts with it ("Patna, Barabanki")
+            rows = [r for r in rows
+                    if (anchor and _km_between(r, anchor) <= QUALIFIER_RADIUS_KM)
+                    or (qual_key and care.key(r.get("district") or "").startswith(qual_key))]
         return rows
 
     exact = keep(_lookup(store, name_key, prefix=False))
@@ -249,7 +253,12 @@ def location_suggest(store: Store, q: str, limit: int = SUGGEST_LIMIT) -> list[d
     out = []
     for r in kept[:limit]:
         p = location_precision(r)
-        out.append({"kind": r["kind"], "display_name": r["display_name"], "district": r["district"],
+        base = base_name(r["display_name"])
+        if r["kind"] == "district":
+            base = re.sub(r"\s+district$", "", base, flags=re.I)
+        query = re.sub(r"\D", "", base) if r["kind"] == "pin" else f"{base}, {r['state']}" if r["kind"] == "district" else (
+            f"{base}, {r['district']}" if r.get("district") and care.key(r["district"]) != care.key(base) else f"{base}, {r['state']}")
+        out.append({"kind": r["kind"], "display_name": r["display_name"], "query": query, "district": r["district"],
                     "state": r["state"], "lat": r["lat"], "lon": r["lon"],
                     "precision": p["precision"], "is_precise": p["is_precise"]})
     return out
@@ -515,6 +524,7 @@ def recommend(store: Store, req: Request) -> dict:
         "skipped_nearby": skipped,
         "medical_desert_alert": desert,
     }
-    resp["spoken_summary"] = spoken_summary(resp, req.audience)
+    resp["spoken"] = spoken(resp, req.audience)          # answer / why / more (voice agent layers)
+    resp["spoken_summary"] = resp["spoken"]["answer"]
     resp["elapsed_ms"] = round((time.perf_counter() - t0) * 1000, 1)
     return resp

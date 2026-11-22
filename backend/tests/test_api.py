@@ -101,7 +101,9 @@ def test_audience_summaries_share_the_same_facts(client):
     assert prov["recommendations"] == pat["recommendations"], "audience changes wording only, never the ranking"
     top = prov["recommendations"][0]["name"]
     assert top in prov["spoken_summary"] and top in pat["spoken_summary"]
-    assert "confidence" in prov["spoken_summary"] and "Second" in prov["spoken_summary"]
-    assert len(pat["spoken_summary"].split()) < len(prov["spoken_summary"].split())
+    for layer in ("answer", "why", "more"):
+        assert prov["spoken"][layer] and pat["spoken"][layer]
+    assert len(prov["spoken"]["answer"].split()) < 90, "the first answer stays short"
+    assert "Here's why I picked" in prov["spoken"]["why"] and "number" in prov["spoken"]["why"]
     em = post(client, service="trauma", location="Lucknow", urgency="emergency", audience="patient")
-    assert em["spoken_summary"].startswith("If this is life-threatening, call 108")
+    assert em["spoken_summary"].startswith("If it's life-threatening, please call 108")

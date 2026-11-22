@@ -1,0 +1,20 @@
+# Care Finder Databricks App: FastAPI (API + web page) and the LiveKit voice worker in one container.
+# Secrets come from the care-finder secret scope via the app resources in resources/care_finder.app.yml.
+command: ["bash", "start_app.sh"]
+env:
+  - name: LIVEKIT_URL                # not secret: the LiveKit Cloud project URL
+    value: "wss://databricks-hackathon-5p5od1hh.livekit.cloud"
+  - name: LIVEKIT_API_KEY
+    valueFrom: livekit-api-key
+  - name: LIVEKIT_API_SECRET
+    valueFrom: livekit-api-secret
+  - name: GOOGLE_API_KEY
+    valueFrom: google-api-key
+  - name: CARE_FINDER_VOLUME
+    value: "/Volumes/workspace/hc_gold/serving"
+  - name: CARE_FINDER_DATA
+    value: "/tmp/care_finder_data"
+  - name: CARE_FINDER_PHONE
+    value: ""
+  - name: LIVEKIT_AGENT_PORT
+    value: "8091"

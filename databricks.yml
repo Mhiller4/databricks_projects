@@ -36,9 +36,17 @@ variables:
   share:
     description: Delta Share catalog.schema holding the challenge tables
     default: databricks_virtue_foundation_dataset_dais_2026.virtue_foundation_dataset
+  app_name:
+    description: "Databricks App name: lowercase letters, digits and hyphens; at most 30 characters"
+    default: care-finder-${workspace.current_user.domain_friendly_name}
 
 include:
   - resources/*.yml
+
+# build/ is gitignored (scripts/build_app.sh assembles it), so tell bundle sync to upload it anyway
+sync:
+  include:
+    - build/care_finder_app/**
 
 targets:
   free:
