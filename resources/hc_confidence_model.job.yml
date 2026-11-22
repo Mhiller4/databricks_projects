@@ -1,0 +1,57 @@
+# Learned confidence score (docs/CONFIDENCE_MODEL_SPEC.md):
+#   llm_labels (gold/32) -> features (gold/33) -> train (gold/30 template) + score (gold/34)
+#   databricks bundle run hc_confidence_model -t free --profile <p>
+# Job-level parameters are pushed to every task and override base_parameters, so only the shared
+# catalog / schema values live here; per-task values (source_table, register_as, ...) are task-level.
+# gold/32 is resumable: re-running after an ai_query limit picks up the unfinished batches.
+
+resources:
+  jobs:
+    hc_confidence_model:
+      name: hc_confidence_model
+      max_concurrent_runs: 1
+      tags:
+        project: care_finder
+        layer: gold
+
+      parameters:
+        - name: catalog
+          default: ${var.catalog}
+        - name: bronze_schema
+          default: ${var.bronze_schema}
+        - name: silver_schema
+          default: ${var.silver_schema}
+        - name: gold_schema
+          default: ${var.gold_schema}
+        - name: landing_volume
+          default: ${var.landing_volume}
+
+      tasks:
+        - task_key: llm_labels
+          notebook_task:
+            notebook_path: ../notebooks/gold/32_llm_labels.py
+
+        - task_key: features
+          depends_on: [{ task_key: llm_labels }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/33_confidence_features.py
+
+        - task_key: train
+          depends_on: [{ task_key: features }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/30_model_template.py
+            base_parameters:
+              source_table: confidence_training
+              target_col: label
+              task: binary
+              group_col: facility_id
+              id_cols: facility_id
+              n_folds: "5"
+              run_name: confidence_training__label
+
+        - task_key: score
+          depends_on: [{ task_key: features }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/34_confidence_model.py
+            base_parameters:
+              register_as: care_finder_confidence
