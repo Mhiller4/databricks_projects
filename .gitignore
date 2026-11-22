@@ -1,4 +1,6 @@
-data/
+data/*
+!data/landing/
+backend/data/
 .databricks/
 __pycache__/
 *.pyc

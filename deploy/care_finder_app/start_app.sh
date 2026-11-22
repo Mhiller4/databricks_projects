@@ -17,6 +17,12 @@ trap shutdown TERM INT
 uvicorn app.main:app --host 0.0.0.0 --port "${PORT}" &
 PIDS+=($!)
 
+# No LiveKit or Gemini keys (scripts/create_secrets.sh stored "not-set"): serve the website only.
+if [ "${LIVEKIT_API_KEY:-not-set}" = "not-set" ] || [ "${GOOGLE_API_KEY:-not-set}" = "not-set" ]; then
+  echo "[start_app] no voice keys: website and API only"
+  wait "${PIDS[0]}"; exit $?
+fi
+
 (
   trap 'kill $(jobs -p) 2>/dev/null; exit 0' TERM
   for _ in $(seq 1 60); do

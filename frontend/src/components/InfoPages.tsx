@@ -23,13 +23,61 @@ export function InfoPages({
           <span className="kicker">How it works</span>
           <h1>How care.in checks and ranks facilities</h1>
           <p className="muted">
-            Each facility first has to pass five checks. The ones that pass are scored and ranked. Every facility
-            comes from the dataset; none are made up by an AI model.
+            You tell care.in the kind of care you need and where the patient is. It returns up to three facilities,
+            quotes the text each pick is based on, and says how sure it is. Every facility comes from the dataset.
+            No AI model invents names, numbers or services.
           </p>
         </header>
 
         <section className="info-section">
-          <h2>1 · Five checks every facility must pass</h2>
+          <h2>1 · Where the data comes from</h2>
+          <p className="muted">
+            The starting point is {rawRecords} facility records the Virtue Foundation extracted from web pages. Text
+            scraped from the web can be wrong, so care.in treats every field as a claim to check, not a fact.
+          </p>
+          <div className="info-grid-2">
+            <div className="info-card">
+              <div className="info-card-num">Bronze · as received</div>
+              <h3>Raw copies, never edited</h3>
+              <p className="muted small">
+                The Virtue Foundation facilities, 165,627 India Post PIN locations and NFHS-5 indicators for 706
+                districts, plus outside files: the National Health Portal hospital directory (about 30,000 hospitals),
+                Census 2011 district boundaries and population, the IHDS-II facility survey and PM-JAY 2025 demand by
+                state.
+              </p>
+            </div>
+            <div className="info-card">
+              <div className="info-card-num">Silver · cleaned</div>
+              <h3>Fixed, joined and logged</h3>
+              <p className="muted small">
+                We removed exact duplicates ({uniqueRecords} left) and collapsed 253 spellings of state names into
+                India’s 36 states and union territories. We also checked coordinates against PIN codes and flagged
+                merged or shifted records. Every automatic cleaning decision is written to a log you can audit.
+              </p>
+            </div>
+            <div className="info-card">
+              <div className="info-card-num">Gold · ready for decisions</div>
+              <h3>Evidence, trust and confidence</h3>
+              <p className="muted small">
+                For each facility and service, gold stores the exact sentences that mention the service and the field
+                they came from. It also stores a trust score for each record and a confidence level, about 40,000
+                facility and service pairs in all. Search uses these tables.
+              </p>
+            </div>
+            <div className="info-card">
+              <div className="info-card-num">Outside sources</div>
+              <h3>Context, never proof</h3>
+              <p className="muted small">
+                A listing in the government hospital directory raises a record’s trust. The survey, census, NFHS-5 and
+                PM-JAY data feed the district gap analysis for planners. None of them counts as evidence that a
+                facility offers a service.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="info-section">
+          <h2>2 · Five checks every facility must pass</h2>
           <p className="muted">
             A facility has to pass all five before it gets a score. Moving the Distance slider to 100% won’t bring
             back one that failed.
@@ -56,7 +104,8 @@ export function InfoPages({
               <h3>The record is trustworthy (trust ≥ 0.50)</h3>
               <p className="muted small">
                 A record loses trust when its coordinates disagree with its India Post PIN location, when it rests on
-                one thin web source, or when its fields look shifted or corrupted.
+                one thin web source, or when its fields look shifted or corrupted. A listing in the National Health
+                Portal directory counts in its favour.
               </p>
             </div>
             <div className="info-card">
@@ -71,10 +120,14 @@ export function InfoPages({
         </section>
 
         <section className="info-section">
-          <h2>2 · Scoring and the three picks</h2>
+          <h2>3 · Scoring and the three picks</h2>
           <div className="formula-banner">
             <code>score = w₁·proximity + w₂·evidence + w₃·trust + w₄·depth</code>
-            <span className="muted small">where proximity = exp(−km / τ) and evidence = evidence_score × type_fit</span>
+            <span className="muted small">
+              where proximity = exp(−km / τ), evidence = evidence_score × type_fit, and depth reflects beds, doctors
+              and specific claims. Default weights are 35 / 30 / 20 / 15 for routine care and 50 / 25 / 15 / 10 in an
+              emergency. You can change them with the sliders.
+            </span>
           </div>
           <div className="info-grid-3">
             <div className="info-card">
@@ -104,7 +157,7 @@ export function InfoPages({
         </section>
 
         <section className="info-section">
-          <h2>3 · Confidence levels and care deserts</h2>
+          <h2>4 · Confidence levels and care deserts</h2>
           <div className="rubric-table">
             <div className="rubric-row">
               <span className="chip chip-high">High</span>
@@ -133,6 +186,86 @@ export function InfoPages({
             desert alert. It draws that distance on the map, searches up to 600 km for the nearest option, and
             suggests also calling the district public hospital.
           </p>
+        </section>
+
+        <section className="info-section">
+          <h2>5 · Checking our own rules with two models</h2>
+          <p className="muted">
+            Rules based on keywords can be fooled by sentences like “NICU not available” or “dialysis coming soon.” We
+            use two models to measure how often the rules get it wrong.
+          </p>
+          <div className="info-grid-2">
+            <div className="info-card">
+              <div className="info-card-num">Model 1 · AI reviewer</div>
+              <h3>Llama 3.3 70B reads the record</h3>
+              <p className="muted small">
+                Using Databricks <code>ai_query</code>, it reads each claim, checks it against Government of India
+                guideline requirements, and must quote the record to back up its answer. Our code confirms each quote
+                really appears in the record. An answer without a verified quote counts as “unclear.” In its first 200
+                reviews, it kept only 59% of the claims our rules had rated High.
+              </p>
+            </div>
+            <div className="info-card">
+              <div className="info-card-num">Model 2 · Capability model</div>
+              <h3>LightGBM learns from the verified answers</h3>
+              <p className="muted small">
+                Trained on the reviewer’s quote-checked labels, it scores all of the roughly 40,000 facility and service
+                pairs from text features, warning words, guideline coverage and record facts. We tested it on hospitals
+                it never saw in training. It ranks claims better than the rules (AUC 0.906 against 0.863). Location is
+                left out on purpose, so it can’t learn that “rural means less capable.”
+              </p>
+            </div>
+          </div>
+          <p className="muted small mt-3">
+            Both models run in the Databricks pipeline and are tracked in MLflow. Today the High, Medium and Low levels
+            in search still come from the rules above. The models tell us where those rules are too generous and which
+            claims to check next.
+          </p>
+        </section>
+
+        <section className="info-section">
+          <h2>6 · Search, voice and phone</h2>
+          <div className="info-grid-2">
+            <div className="info-card">
+              <span className="info-icon"><IconSliders size={20} /></span>
+              <h3>One engine for every channel</h3>
+              <p className="muted small">
+                The website, the browser voice assistant and the phone line all call the same search engine. It is
+                plain code, not a model, so the same question always gets the same answer.
+              </p>
+            </div>
+            <div className="info-card">
+              <span className="info-icon"><IconMic size={20} /></span>
+              <h3>A voice assistant that can’t make things up</h3>
+              <p className="muted small">
+                The assistant runs on LiveKit and Gemini Live. It first asks whether you’re a health worker or a
+                patient. Health workers get all three options and a referral. Patients get an emergency check first
+                (call 108), then plain words. It can only repeat what care.in’s tools return, plus guidance our team
+                wrote in advance.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <section className="info-section">
+          <h2>7 · Built and run on Databricks</h2>
+          <div className="info-card">
+            <ul className="plain-list">
+              <li>
+                The data pipeline, the AI review, the model training and this app are defined together in one
+                Databricks Asset Bundle. One command deploys everything, and one command rebuilds every table from the
+                original data.
+              </li>
+              <li>
+                The app runs as a Databricks App. Each time it starts, it loads the latest gold tables from Unity
+                Catalog, so a restart always serves the newest pipeline run.
+              </li>
+              <li>
+                Everything runs on Databricks Free Edition: serverless compute, Unity Catalog and pay-per-token
+                Foundation Model APIs.
+              </li>
+            </ul>
+          </div>
         </section>
 
         <div className="info-cta">

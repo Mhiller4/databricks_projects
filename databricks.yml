@@ -44,10 +44,12 @@ variables:
 include:
   - resources/*.yml
 
-# build/ is gitignored (scripts/build_app.sh assembles it), so tell bundle sync to upload it anyway
+# build/ is gitignored (scripts/build_app.sh assembles it), so tell bundle sync to upload it anyway.
+# data/landing/ holds the outside data files that bronze/02 seeds into the landing volume.
 sync:
   include:
     - build/care_finder_app/**
+    - data/landing/**
 
 targets:
   free:

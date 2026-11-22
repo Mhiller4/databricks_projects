@@ -15,6 +15,11 @@
 # MAGIC | `count_specialty_per_state.csv` | `ext_pmjay_specialties_by_state` | PM-JAY top specialties per state, 2025 |
 # MAGIC | `india_districts_2011.geojson` | `ext_district_boundaries_2011` | District polygons, Census 2011 codes |
 # MAGIC | `india_districts_2001.geojson` | `ext_district_boundaries_2001` | District polygons, Census 2001 codes |
+# MAGIC | `2011_Census_india.xlsx` | (read directly by silver/18) | Census 2011 district population |
+# MAGIC | `Healthcare professionals ... Data For India.csv` | `ext_healthcare_professionals_...` | Doctors, nurses etc. per 10,000 people by state, 2023 |
+# MAGIC
+# MAGIC **Seeding:** the same files ship in the repo under `data/landing/` (sources and licences: `data/landing/SOURCES.md`).
+# MAGIC Any file missing from the volume is copied there first, so a fresh workspace needs no manual upload.
 
 # COMMAND ----------
 
@@ -23,6 +28,18 @@
 # COMMAND ----------
 
 import os
+import shutil
+
+# Seed the landing volume from the repo copy (data/landing/), without overwriting files already there.
+SEED = os.path.join(REPO_ROOT, "data", "landing")
+if os.path.isdir(SEED):
+    for f in sorted(os.listdir(SEED)):
+        src, dst = os.path.join(SEED, f), os.path.join(cfg.landing, f)
+        if os.path.isfile(src) and not f.startswith(".") and f != "SOURCES.md" and not os.path.exists(dst):
+            shutil.copyfile(src, dst)
+            print(f"seeded {f} from the repo")
+else:
+    print(f"no repo copy at {SEED}: using the files already in {cfg.landing}")
 
 from hc.io import SUPPORTED_EXT, ext_of, ingest_file_to_bronze
 from hc.naming import table_name_from_file
@@ -36,10 +53,16 @@ KNOWN = {
     "india_districts_2001.geojson": ("ext_district_boundaries_2001", "India district boundaries with Census 2001 codes; geometry is GeoJSON text."),
 }
 
+# Read directly by another notebook, not loaded as a bronze table here.
+DIRECT = {"2011_census_india.xlsx": "silver/18 reads it with openpyxl"}
+
 folder = cfg.landing
 files = sorted(f for f in os.listdir(folder) if os.path.isfile(os.path.join(folder, f)) and not f.startswith((".", "_")))
 results = []
 for f in files:
+    if f.lower() in DIRECT:
+        print(f"skip ({DIRECT[f.lower()]}): {f}")
+        continue
     if ext_of(f) not in SUPPORTED_EXT:
         print(f"skip (not data): {f}")
         continue

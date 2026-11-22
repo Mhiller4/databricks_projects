@@ -1,10 +1,12 @@
 """Care Finder phone / browser voice agent (LiveKit Agents + Gemini Live).
 
 Call flow
-    Greeter   "Press 1 or say 'provider' if you're a health worker; press 2 or say 'patient'..."
+    Greeter   "Press 1 if you're a health worker, 2 if you're a patient or family, or 3 for a quick demo."
               keypad (phone, via SIP DTMF) or voice (browser and phone) -> hands the call to:
     Provider  health workers / NGOs / clinics: concise, clinical, all 3 options, skipped-nearby, verbal referral
     Patient   patients and families: emergency check first (108), plain words, best option + one backup
+    Demo      press 3: how care.in works in four sentences, then a live search (dialysis near Bandra, Mumbai),
+              then offers 1 or 2 to try it
 
 Tools (all grounded; the model never answers facility questions from its own knowledge):
     find_best_care  facilities for a service near a place (POST /api/recommend; spoken text written by templates)
@@ -26,6 +28,7 @@ GEMINI_MODEL, GEMINI_VOICE, AGENT_NAME (blank = join every new room; set it for 
 
 from __future__ import annotations
 
+import asyncio
 import difflib
 import json
 import logging
@@ -44,8 +47,9 @@ for p in (HERE / ".env.local", HERE.parent / ".env.local", HERE.parent.parent / 
         load_dotenv(p, override=False)
 
 from livekit import rtc  # noqa: E402
-from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunContext, cli, function_tool, get_job_context  # noqa: E402
-from livekit.plugins import google  # noqa: E402
+from google.genai import types as gtypes  # noqa: E402
+from livekit.agents import Agent, AgentServer, AgentSession, JobContext, RunContext, cli, function_tool, get_job_context, room_io  # noqa: E402
+from livekit.plugins import google, noise_cancellation  # noqa: E402
 
 import guidance as approved  # noqa: E402  (voice_agent/guidance.py)
 
@@ -54,7 +58,8 @@ log = logging.getLogger("care-finder-agent")
 API = os.environ.get("CARE_FINDER_API", f"http://127.0.0.1:{os.environ.get('DATABRICKS_APP_PORT', '8000')}").rstrip("/")
 AGENT_NAME = os.environ.get("AGENT_NAME", "")
 RESULT_TOPIC = "care-finder.result"  # full /api/recommend payloads for the web page
-ROLE_ATTRIBUTE = "care_finder.role"  # set by the web page token (POST /api/livekit/token)
+ROLE_ATTRIBUTE = "care_finder.role"
+STUCK_S = 12.0  # seconds of "thinking" before the watchdog nudges the model  # set by the web page token (POST /api/livekit/token)
 
 # ---------------------------------------------------------------------------------------------
 # Instructions
@@ -148,10 +153,11 @@ GUIDANCE (fixed wording only)
 
 GREETER = """
 You are care.in's greeter (say the name as "care dot in"). Your only job is to find out who is calling.
-Say: "Welcome to care dot in. If you're a health worker or care provider, press 1 or say provider.
-If you're a patient or family member, press 2 or say patient."
+Say: "Welcome to care dot in. Press 1 if you're a health worker, 2 if you're a patient or family member,
+or 3 for a quick demo."
 - "1", "one", provider, health worker, ASHA, doctor, nurse, NGO, clinic staff -> call set_caller_type("provider").
 - "2", "two", patient, family, "my father", "my wife", "for myself" -> call set_caller_type("patient").
+- "3", "three", demo, "how does it work", "show me" -> call set_caller_type("demo").
 - If the caller jumps straight to describing a need, decide from what they said and call set_caller_type.
 - If unclear, ask once more. Reply in the caller's language. Don't search for facilities yourself.
 """.strip()
@@ -202,13 +208,36 @@ YOU'RE TALKING TO A PATIENT OR A FAMILY MEMBER.
 - Be reassuring, but never promise that a place has a bed or will treat them.
 """
 
+# The demo is scripted in code (DemoAgent.on_enter): each line is its own short turn with tools off, then the code
+# runs the search itself. Left to the model, Gemini skipped lines and jumped straight to the tool call.
+DEMO_TURNS = (
+    "Here's a quick demo of care dot in. We search about ten thousand facility records from across India, "
+    "checked against government data.",
+    "We only suggest a place when its own record mentions the care you need, and we say how sure we are: "
+    "high, medium or low.",
+    "Distance only counts when we rank results, so small local clinics get a fair chance.",
+    "Let's try one. Say a family in Bandra, Mumbai needs dialysis. One moment while I search.",
+)
+DEMO_SEARCH = ("dialysis", "Bandra, Mumbai", "routine")
+DEMO_OUTRO = (
+    "That's the demo. To try your own search, press 1 if you're a health worker, or 2 if you're a patient "
+    "or family member. Or just tell me what care you need and where."
+)
+
+DEMO = COMMON + f"""
+
+THIS CALL IS A DEMO (the caller pressed 3). The demo lines and the example search are run for you, one step
+at a time: when asked to say a line, say exactly that line and nothing else, and don't call tools.
+- After the demo, help with whatever the caller asks, as for a patient or family member. If they say they're a
+  health worker or a patient, call set_caller_type.
+"""
+
 PERSONA_INTRO = {
-    "provider": "Briefly confirm you'll help them find a facility, then ask in one sentence for the service, "
-                "the patient's PIN code or locality, and whether it's an emergency. If they're unsure of the service, "
-                "offer to work it out from what's happening.",
-    "patient": "Say in one short sentence that you're here to help them find care, then ask whether this is an "
-               "emergency right now. After that, ask whether they know what kind of care they need, or would like "
-               "to work it out together.",
+    # One short question per turn: a long opening turn is easier for line noise to cut off.
+    "provider": "In one short sentence, ask what care the patient needs and where they are. Nothing else yet.",
+    "patient": "In one short sentence, say you're here to help, and ask only whether this is an emergency right now. "
+               "Wait for the answer before asking anything else.",
+    "demo": "Start the demo now, exactly as your instructions say.",
 }
 
 
@@ -314,12 +343,18 @@ class CareAgent(Agent):
                 "town, state", in English letters.
             urgency: "emergency" if the patient needs care right now, otherwise "routine".
         """
+        return json.dumps(await self._search(service, location, urgency, context.userdata), ensure_ascii=False)
+
+    async def _search(self, service: str, location: str, urgency: str, state: CallState) -> dict:
+        """POST /api/recommend and shape the result for the model (also used by the scripted demo)."""
         urgency = "emergency" if str(urgency).lower().startswith("emerg") else "routine"
         log.info("find_best_care audience=%s service=%r location=%r urgency=%s", self.audience, service, location, urgency)
         room = get_job_context().room
+        # The API only knows provider / patient; the demo speaks to a general listener, so it asks as a patient.
+        audience = self.audience if self.audience in ("provider", "patient") else "patient"
         try:
             r = await self.http.post(f"{API}/api/recommend", json={
-                "service": service, "location": location, "urgency": urgency, "audience": self.audience,
+                "service": service, "location": location, "urgency": urgency, "audience": audience,
                 "broadcast_to_ui": True, "source": "voice", "session": room.name,
             })
             r.raise_for_status()
@@ -333,13 +368,12 @@ class CareAgent(Agent):
             log.exception("backend call failed")
             out = {"status": "error", "answer": "Sorry, I can't look that up right now. Could you try again in a minute?",
                    "detail": str(e)[:200]}
-        state: CallState = context.userdata
         if out.get("status") == "ok":
             out["search_number"] = state.add(service, location, out)
         earlier = [{"search": s["n"], "service": s["service"], "location": s["location"]} for s in state.searches[:-1]]
         if earlier:
             out["earlier_searches_this_call"] = earlier
-        return json.dumps(out, ensure_ascii=False)
+        return out
 
     @function_tool()
     async def recall_search(self, context: RunContext, service: str) -> str:
@@ -556,7 +590,47 @@ class PatientAgent(CareAgent):
         super().__init__(PATIENT, chat_ctx)
 
 
-PERSONAS = {"provider": ProviderAgent, "patient": PatientAgent, "1": ProviderAgent, "2": PatientAgent}
+class DemoAgent(CareAgent):
+    audience = "demo"
+
+    def __init__(self, chat_ctx=None) -> None:
+        super().__init__(DEMO, chat_ctx)
+
+    async def on_enter(self) -> None:
+        # No tools while the lines play, so the model can't jump ahead to a search. (Gemini only emulates a
+        # "no tools this turn" setting, and that left the shared session unable to answer the next real search.)
+        tools = list(self.tools)
+        await self.update_tools([])
+        try:
+            for i, line in enumerate(DEMO_TURNS, 1):
+                h = self.session.generate_reply(instructions=f'Say exactly this, word for word, and nothing else: "{line}"')
+                await h
+                log.info("demo line %d/%d %s", i, len(DEMO_TURNS), "interrupted" if h.interrupted else "done")
+        finally:
+            await self.update_tools(tools)
+        out = await self._search(*DEMO_SEARCH, self.session.userdata)
+        await self.session.generate_reply(instructions=(
+            "This is the result of the example search (dialysis near Bandra, Mumbai), as JSON: "
+            + json.dumps(out, ensure_ascii=False)
+            + "\nRead back the options the way the result tells you to, briefly and in plain words, with each one's "
+            f'confidence. Then say, word for word: "{DEMO_OUTRO}"'
+        ))
+        log.info("demo finished")
+
+    @function_tool()
+    async def set_caller_type(self, context: RunContext, caller_type: str) -> Agent:
+        """Hand the call to the right assistant when the caller says who they are after the demo.
+
+        Args:
+            caller_type: "provider" for health workers and care providers, "patient" for patients and family.
+        """
+        cls = PatientAgent if str(caller_type).lower().startswith(("pat", "fam", "2")) else ProviderAgent
+        log.info("caller type after demo (voice): %s", cls.audience)
+        return cls(chat_ctx=self.chat_ctx)
+
+
+PERSONAS = {"provider": ProviderAgent, "patient": PatientAgent, "demo": DemoAgent,
+            "1": ProviderAgent, "2": PatientAgent, "3": DemoAgent}
 
 
 class Greeter(Agent):
@@ -571,9 +645,11 @@ class Greeter(Agent):
         """Hand the call to the right assistant once you know who is calling.
 
         Args:
-            caller_type: "provider" for health workers and care providers, "patient" for patients and family.
+            caller_type: "provider" for health workers and care providers, "patient" for patients and family,
+                "demo" to hear how care.in works.
         """
-        cls = PatientAgent if str(caller_type).lower().startswith(("pat", "fam", "2")) else ProviderAgent
+        t = str(caller_type).lower()
+        cls = DemoAgent if t.startswith(("demo", "3")) else PatientAgent if t.startswith(("pat", "fam", "2")) else ProviderAgent
         log.info("caller type (voice): %s", cls.audience)
         return cls(chat_ctx=self.chat_ctx)
 
@@ -597,24 +673,70 @@ async def entrypoint(ctx: JobContext) -> None:
             temperature=0.4,
             # Without an explicit version the Live WebSocket endpoint returns 404 (checked Nov 21).
             api_version=os.environ.get("GEMINI_API_VERSION", "v1beta"),
+            # Phone lines carry noise and echo that Gemini's voice detection took for the caller talking, which
+            # cut the agent off mid-sentence. LOW start sensitivity plus 300 ms of sound before it counts as speech.
+            realtime_input_config=gtypes.RealtimeInputConfig(
+                automatic_activity_detection=gtypes.AutomaticActivityDetection(
+                    start_of_speech_sensitivity=gtypes.StartSensitivity.START_SENSITIVITY_LOW,
+                    prefix_padding_ms=300,
+                ),
+            ),
         ),
     )
 
+    # Log turn-taking so a cut-off call shows what interrupted it.
+    @session.on("user_state_changed")
+    def _user_state(ev) -> None:
+        log.info("user %s -> %s (agent %s)", ev.old_state, ev.new_state, session.agent_state)
+
+    # Watchdog: if the model goes quiet after a tool call ("thinking" for STUCK_S), nudge it so the caller is
+    # never left in silence.
+    stuck: list[asyncio.Task] = []
+
+    async def _unstick() -> None:
+        await asyncio.sleep(STUCK_S)
+        if session.agent_state == "thinking":
+            log.warning("agent stuck thinking for %.0f s: nudging", STUCK_S)
+            session.interrupt(force=True)
+            session.generate_reply(instructions=(
+                "Tell the caller, in plain words, what the search you just ran found, using its result. "
+                "If you don't have a result, say sorry and ask them to say the place again."))
+
+    @session.on("agent_state_changed")
+    def _agent_state(ev) -> None:
+        log.info("agent %s -> %s", ev.old_state, ev.new_state)
+        while stuck:
+            stuck.pop().cancel()
+        if ev.new_state == "thinking":
+            stuck.append(asyncio.create_task(_unstick()))
+
+    @session.on("agent_false_interruption")
+    def _false_interruption(ev) -> None:
+        log.info("false interruption (resumed=%s)", ev.resumed)
+
     def on_dtmf(ev: rtc.SipDTMF) -> None:
-        """Phone keypad: 1 = provider, 2 = patient (only while the greeter is active)."""
+        """Phone keypad: 1 = provider, 2 = patient, 3 = demo (from the greeter; 1 or 2 also from the demo)."""
         cls = PERSONAS.get(ev.digit)
-        if cls and isinstance(session.current_agent, Greeter):
+        current = session.current_agent
+        if cls and (isinstance(current, Greeter) or (isinstance(current, DemoAgent) and cls is not DemoAgent)):
             log.info("caller type (keypad %s): %s", ev.digit, cls.audience)
             session.interrupt()
-            session.update_agent(cls(chat_ctx=session.current_agent.chat_ctx))
+            session.update_agent(cls(chat_ctx=current.chat_ctx))
 
     ctx.room.on("sip_dtmf_received", on_dtmf)
     # Web users pick their role on the page; it arrives as a participant attribute, so skip the greeter.
     participant = await ctx.wait_for_participant()
     role = (participant.attributes or {}).get(ROLE_ATTRIBUTE, "")
     first = PERSONAS[role]() if role in ("provider", "patient") else Greeter()
-    log.info("session start: room=%s role=%s", ctx.room.name, role or "(greeter)")
-    await session.start(agent=first, room=ctx.room)
+    # Phone callers get LiveKit's telephony noise filter (LiveKit Cloud), browser callers the standard one.
+    is_phone = participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP
+    nc = noise_cancellation.BVCTelephony() if is_phone else noise_cancellation.BVC()
+    log.info("session start: room=%s role=%s phone=%s", ctx.room.name, role or "(greeter)", is_phone)
+    await session.start(
+        agent=first,
+        room=ctx.room,
+        room_options=room_io.RoomOptions(audio_input=room_io.AudioInputOptions(noise_cancellation=nc)),
+    )
 
 
 if __name__ == "__main__":

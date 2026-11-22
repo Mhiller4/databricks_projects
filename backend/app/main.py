@@ -111,7 +111,9 @@ token_limiter = TokenLimiter(max_events=10, window_s=60.0)
 
 
 def _voice_configured() -> bool:
-    return bool(os.environ.get("LIVEKIT_URL") and os.environ.get("LIVEKIT_API_KEY") and os.environ.get("LIVEKIT_API_SECRET"))
+    # scripts/create_secrets.sh stores "not-set" when no LiveKit keys are given: the website then runs without voice.
+    vals = [os.environ.get(k, "") for k in ("LIVEKIT_URL", "LIVEKIT_API_KEY", "LIVEKIT_API_SECRET")]
+    return all(v and v != "not-set" for v in vals)
 
 
 @asynccontextmanager
