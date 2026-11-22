@@ -1,6 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 05 - Serving: `find_care(service, place)`, one front door for the phone line and Genie
+# MAGIC # Gold 43 · Serving: `find_care(service, place)`, one front door for the phone line and Genie
 # MAGIC
 # MAGIC Run after `02_llm_review` (and `03_external_validation` if you have the external files).
 # MAGIC
@@ -12,12 +12,12 @@
 # MAGIC - returns the evidence quote, cautions, guideline check, external verification and contact details
 # MAGIC - if the place is not found, returns one row with `result_rank = 0` and `name = 'PLACE NOT FOUND'`
 # MAGIC
-# MAGIC Creates only new objects: `find_care()`, and an empty `facility_external_validation` if 03 has not run.
+# MAGIC Creates only new objects: `find_care()`, and an empty `facility_external_validation` if gold/41 has not run.
 
 # COMMAND ----------
 
 GOLD = "workspace.hc_gold"
-# Use the model-scored index from 06 when it exists, else the AI-reviewed index from 02
+# Use the model-scored index from gold/44 when it exists, else the AI-reviewed index from gold/40
 INDEX_TABLE = f"{GOLD}.care_finder_index_final" if spark.catalog.tableExists(f"{GOLD}.care_finder_index_final") else f"{GOLD}.care_finder_index_v2"
 EVIDENCE_SOURCE = "evidence_source" if INDEX_TABLE.endswith("_final") else "CASE WHEN reviewed THEN 'AI review' ELSE 'rules' END"
 print("find_care will read:", INDEX_TABLE)
@@ -27,7 +27,7 @@ spark.sql(f"""
 CREATE TABLE IF NOT EXISTS {GOLD}.facility_external_validation (
   facility_id STRING, service_key STRING, verification_level STRING, external_source STRING,
   external_name STRING, match_method STRING, match_score DOUBLE)
-COMMENT 'External cross-checks (LaQshya certification, National Hospital Directory). Filled by 03_external_validation.'
+COMMENT 'External cross-checks (LaQshya certification, National Hospital Directory). Filled by gold/41_external_validation.'
 """)
 
 # COMMAND ----------

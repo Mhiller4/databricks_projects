@@ -1,0 +1,29 @@
+# Everything, in order: data pipeline -> first AI review -> labels, capability model, gap analysis, find_care().
+# Each step is its own job, so any of them can still run alone.
+#   databricks bundle run hc_full_refresh -t free --profile <p>
+# The LLM steps (hc_ai_review, gold/32 in hc_confidence_model) resume where they stopped, so a re-run after a
+# Free Edition ai_query limit doesn't redo finished batches.
+# Afterwards, restart the app (databricks bundle run care_finder ...) to serve the new export.
+
+resources:
+  jobs:
+    hc_full_refresh:
+      name: hc_full_refresh
+      max_concurrent_runs: 1
+      tags:
+        project: care_finder
+
+      tasks:
+        - task_key: data_pipeline
+          run_job_task:
+            job_id: ${resources.jobs.hc_care_finder.id}
+
+        - task_key: ai_review
+          depends_on: [{ task_key: data_pipeline }]
+          run_job_task:
+            job_id: ${resources.jobs.hc_ai_review.id}
+
+        - task_key: confidence_model
+          depends_on: [{ task_key: ai_review }]
+          run_job_task:
+            job_id: ${resources.jobs.hc_confidence_model.id}

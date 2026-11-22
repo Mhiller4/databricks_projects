@@ -2,6 +2,13 @@
 
 Owner: Mekeli (pipeline), Bryce (audit). Status: building, Nov 21 2026. Deadline Nov 22, 12:30 PM.
 
+> **Outcome (Nov 21).** Steps 2–4 below (the tabular model in `gold/33`, `gold/30`, `gold/34`) were built and run,
+> then removed: on held-out data the rules' base score ranked as well (AUC 0.950 vs 0.943) and the model rated 95%
+> of negation records High. The labels from step 1 (`gold/32`) now train the capability model in
+> `gold/44_capability_model.py`, which adds text features (warning words, checklist coverage). Held-out:
+> AUC 0.906 vs rules 0.863; the app band is the average of the rules and model bands, rounded up (High holds up
+> ~78% at ~26% of pairs). Results: `hc_gold.model_eval_bands`.
+
 ## Why
 
 Care Finder rates every facility × service claim High, Medium or Low with hand-written rules

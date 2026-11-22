@@ -4,9 +4,9 @@
 # environment_version = "6"
 # ///
 # MAGIC %md
-# MAGIC # 06 - Train the capability model: "can this facility provide this service?"
+# MAGIC # Gold 44 · Train the capability model: "can this facility provide this service?"
 # MAGIC
-# MAGIC **Purpose.** The LLM review (`02`) carefully checks ~3,000 risky facility x service pairs. This model learns from
+# MAGIC **Purpose.** The LLM review (`gold/40`) carefully checks ~3,000 risky facility x service pairs. This model learns from
 # MAGIC those checked answers and scores **all ~40,000 pairs** in seconds, for any service, with reasons.
 # MAGIC
 # MAGIC | Step | What happens |
@@ -354,7 +354,7 @@ if rnd.sum() >= 20:
     strata.append(dict(model="rules_baseline (Mekeli)", stratum="random-sample test rows (represents all 40k)", n=int(rnd.sum()),
                        **metrics(yte[rnd], test.evidence_score.fillna(0).values[rnd], 0.4)))
 else:
-    print(f"Only {int(rnd.sum())} random-sample rows in test; raise RANDOM_SAMPLE_ROWS in 02 for a reliable estimate.")
+    print(f"Only {int(rnd.sum())} random-sample rows in test; raise per_cell in gold/32 for a reliable estimate.")
 save_pdf(pd.DataFrame(strata), f"{GOLD}.model_eval_by_stratum")
 display(pd.DataFrame(strata))
 
@@ -500,7 +500,7 @@ display(pdf[["service_key", "model_prob", "model_reasons", "label"]].sample(15, 
 # MAGIC | Row | Final evidence |
 # MAGIC |---|---|
 # MAGIC | LLM said not available / planned / referral | excluded (unchanged) |
-# MAGIC | LLM reviewed (available / unclear) | LLM-adjusted evidence from `02` (unchanged) |
+# MAGIC | LLM reviewed (available / unclear) | LLM-adjusted evidence from `gold/40` (unchanged) |
 # MAGIC | Not reviewed by the LLM | band = **average of the rules band and the model band, rounded up** (model probability capped at 0.30 for travel-only sources) |
 # MAGIC
 # MAGIC Same column names as `care_finder_index_v2`, so `find_care()` and the gap analysis just read the new table.
@@ -537,7 +537,7 @@ final = (spark.table(V2).join(ms, ["facility_id", "service_key"], "left")
 final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.care_finder_index_final")
 display(spark.table(f"{GOLD}.care_finder_index_final").groupBy("evidence_source", "adjusted_confidence").count()
         .orderBy("evidence_source", "adjusted_confidence"))
-print("Next: re-run 04_gap_analysis and 05_serving (they use care_finder_index_final automatically).")
+print("Next: gold/42_gap_analysis and gold/43_find_care (they use care_finder_index_final automatically).")
 
 # COMMAND ----------
 

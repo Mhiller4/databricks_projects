@@ -1,6 +1,8 @@
 # Databricks notebook source
 # MAGIC %md
-# MAGIC # 03 - External validation: National Hospital Directory + LaQshya
+# MAGIC # Gold 41 · External validation: National Hospital Directory + LaQshya
+# MAGIC
+# MAGIC **Not in any job:** it overwrites `hc_gold.facility_external_matches`, which `gold/27` owns. Change its output table before running it.
 # MAGIC
 # MAGIC Cross-checks the provided facilities against independent government lists. It **adds verification
 # MAGIC labels**; it never adds facilities.

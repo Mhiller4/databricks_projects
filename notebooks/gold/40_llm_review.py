@@ -4,7 +4,7 @@
 # environment_version = "6"
 # ///
 # MAGIC %md
-# MAGIC # 02 - LLM review layer on top of Care Finder
+# MAGIC # Gold 40 · LLM review layer on top of Care Finder
 # MAGIC
 # MAGIC Mekeli's rules pipeline (`care_finder_index`, `facility_trust`, `recommend_facilities()`) scores
 # MAGIC 40k facility x service pairs with regex evidence. This notebook adds what rules cannot do:

@@ -1,8 +1,9 @@
 # Care Finder bundle (CMU Datathon Fall 2026, Virtue Foundation India facilities)
 #
 # Deploy:   databricks bundle deploy -t free --profile <your-profile>
-# Run:      databricks bundle run hc_care_finder -t free --profile <your-profile>   (share -> gold, ~10 min)
-#           databricks bundle run hc_model -t free --profile <your-profile> --params source_table=...,target_col=...
+# Run:      databricks bundle run hc_full_refresh -t free --profile <your-profile>  (everything, in order)
+#           or one step: hc_care_finder (data) -> hc_ai_review (LLM review) -> hc_confidence_model (model, gaps)
+#           then restart the app: databricks bundle run care_finder -t free --profile <your-profile>
 #
 # Targets
 #   free       Databricks Free Edition (default). Serverless only, catalog `workspace`.

@@ -1,6 +1,8 @@
 # Care Finder, end to end:
 #   Delta Share -> bronze (as received) -> DQ profile -> auto-clean silver -> DQ profile
 #   -> facility_master -> location lookup / service evidence / trust -> index + SQL functions -> demo + Parquet export
+#   -> facilities_curated -> facilities_clean (silver/18)
+# Step 1 of hc_full_refresh (then hc_ai_review, then hc_confidence_model).
 #
 #   databricks bundle run hc_care_finder -t free --profile <p>        (~10 min)
 #
@@ -156,6 +158,12 @@ resources:
           depends_on: [{ task_key: index_and_functions }, { task_key: facility_districts }, { task_key: external_corroboration }, { task_key: silver_ihds }]
           notebook_task:
             notebook_path: ../notebooks/silver/17_facilities_curated.py
+
+        # Bryce's cleaning pass: canonical service labels, checked coordinates, doctors/beds, census population
+        - task_key: facilities_clean
+          depends_on: [{ task_key: facilities_curated }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/18_facilities_clean.py
 
         - task_key: export_serving
           depends_on: [{ task_key: index_and_functions }]

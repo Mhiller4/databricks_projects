@@ -3,7 +3,7 @@
 # MAGIC # Gold 32 · LLM labels for the confidence model (random, stratified, resumable)
 # MAGIC
 # MAGIC Spec: `docs/CONFIDENCE_MODEL_SPEC.md`, step 1. Same prompt, model, JSON schema and quote check as the
-# MAGIC first review (`find_the_right_care/02_llm_review.py`, 200 rows in `hc_gold.llm_review`), so all labels
+# MAGIC first review (`gold/40_llm_review.py`, 200 rows in `hc_gold.llm_review`), so all labels
 # MAGIC are consistent.
 # MAGIC
 # MAGIC | Output | What |

@@ -1,20 +1,16 @@
-# Confidence for every facility x service pair (docs/CONFIDENCE_MODEL_SPEC.md + notebooks/find_the_right_care):
+# Confidence for every facility x service pair, and what the app and planners read:
 #
 #   llm_labels (gold/32: 1,200 random + 200 risk-selected pairs, Llama 3.3 70B, resumable)
-#     |-- features (gold/33) --> train (gold/30 template)         research: our tabular model, rules vs model report
-#     |                      \-> score (gold/34)
-#     \-- capability_model (find_the_right_care/06)             the score the app uses: text features + LightGBM,
-#            |                                                  final band = average of rules and model, rounded up
-#            |-- gap_analysis (04)  district x service access gaps and NFHS-5 need
-#            \-- serving (05)       find_care() table function over care_finder_index_final
+#     \-- capability_model (gold/44)   text features + LightGBM; final band = average of rules and model, rounded up
+#            |-- gap_analysis (gold/42)  district x service access gaps and NFHS-5 need
+#            \-- find_care (gold/43)     find_care() table function over care_finder_index_final
 #
 #   databricks bundle run hc_confidence_model -t free --profile <p>
-#   only the app path:  ... --only capability_model,gap_analysis,serving
+#   skip the labelling step:  ... --only capability_model,gap_analysis,find_care
 #
-# Needs hc_gold.care_finder_index_v2 from job hc_ai_review (find_the_right_care/02) to exist.
-# find_the_right_care/03 is deliberately in no job: it would overwrite hc_gold.facility_external_matches (gold/27).
-# Job-level parameters are pushed to every task and override base_parameters, so only the shared
-# catalog / schema values live here; per-task values (source_table, register_as, ...) are task-level.
+# Step 3 of hc_full_refresh. Needs hc_gold.care_finder_index_v2 and llm_review from hc_ai_review (gold/40).
+# gold/41 is deliberately in no job: it would overwrite hc_gold.facility_external_matches (gold/27).
+# Design notes and results: docs/CONFIDENCE_MODEL_SPEC.md
 
 resources:
   jobs:
@@ -42,44 +38,17 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/gold/32_llm_labels.py
 
-        # ---- research path: tabular model vs the rules
-        - task_key: features
-          depends_on: [{ task_key: llm_labels }]
-          notebook_task:
-            notebook_path: ../notebooks/gold/33_confidence_features.py
-
-        - task_key: train
-          depends_on: [{ task_key: features }]
-          notebook_task:
-            notebook_path: ../notebooks/gold/30_model_template.py
-            base_parameters:
-              source_table: confidence_training
-              target_col: label
-              task: binary
-              group_col: facility_id
-              id_cols: facility_id
-              n_folds: "5"
-              run_name: confidence_training__label
-
-        - task_key: score
-          depends_on: [{ task_key: features }]
-          notebook_task:
-            notebook_path: ../notebooks/gold/34_confidence_model.py
-            base_parameters:
-              register_as: care_finder_confidence
-
-        # ---- app path: capability model -> final index -> gap analysis + find_care()
         - task_key: capability_model
           depends_on: [{ task_key: llm_labels }]
           notebook_task:
-            notebook_path: ../notebooks/find_the_right_care/06_train_model.py
+            notebook_path: ../notebooks/gold/44_capability_model.py
 
         - task_key: gap_analysis
           depends_on: [{ task_key: capability_model }]
           notebook_task:
-            notebook_path: ../notebooks/find_the_right_care/04_gap_analysis.py
+            notebook_path: ../notebooks/gold/42_gap_analysis.py
 
-        - task_key: serving
+        - task_key: find_care
           depends_on: [{ task_key: capability_model }]
           notebook_task:
-            notebook_path: ../notebooks/find_the_right_care/05_serving.py
+            notebook_path: ../notebooks/gold/43_find_care.py

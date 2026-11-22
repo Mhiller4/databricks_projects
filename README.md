@@ -56,7 +56,7 @@ Delta Share ──► hc_bronze (as received) ──► hc_silver (cleaned + fac
 
 ```bash
 databricks bundle deploy -t free --profile <name>
-databricks bundle run hc_care_finder -t free --profile <name>
+databricks bundle run hc_full_refresh -t free --profile <name>
 ```
 
 ## Layout
@@ -64,18 +64,21 @@ databricks bundle run hc_care_finder -t free --profile <name>
 | Path | What it is |
 |---|---|
 | `databricks.yml` | bundle: `free` target (default) and `hackathon` target; `share` variable |
-| `resources/hc_care_finder.job.yml` | **the pipeline**: share → bronze → profile → clean → facility_master → gold → demo |
-| `resources/hc_model.job.yml` | model template job: any table + target → dummy / linear / LightGBM → SHAP → MLflow |
+| `resources/hc_full_refresh.job.yml` | runs the three jobs below in order |
+| `resources/hc_care_finder.job.yml` | 1 · data: share → bronze → profile → clean → facility_master → gold index + SQL functions → Parquet export |
+| `resources/hc_ai_review.job.yml` | 2 · first AI review (`gold/40`): risk-selected pairs, Llama 3.3 70B with quote checks → `care_finder_index_v2` |
+| `resources/hc_confidence_model.job.yml` | 3 · labels (`gold/32`) → capability model (`gold/44`) → gap analysis (`gold/42`) + `find_care()` (`gold/43`) |
+| `resources/care_finder.app.yml` | the care.in Databricks App (web page, API, phone agent) |
 | `notebooks/00_setup/` | create schemas + landing volume |
-| `notebooks/bronze/01_ingest_kickoff_data` | copy the share tables (or landing-volume files) into bronze |
-| `notebooks/silver/` | `10` DQ profile · `11` generic auto-clean · `12` facility_master |
-| `notebooks/gold/` | `20` location lookup · `21` service evidence · `22` facility trust · `23` index + SQL functions · `24` demo · `30` model template |
-| `src/hc/` | shared library: `care` (Care Finder rules), `clean`, `profile`, `geo`, `io`, `naming`, `config`, `model` |
+| `notebooks/bronze/` | `01` copy the share tables · `02` external files from the landing volume |
+| `notebooks/silver/` | `10` DQ profile · `11` auto-clean · `12` facility_master · `13`–`16` external sources · `17` facilities_curated · `18` facilities_clean + census population (Bryce) |
+| `notebooks/gold/` | `20`–`29` location lookup, evidence, trust, index + SQL functions, demo, export, districts, corroboration, coverage, PM-JAY · `31` IHDS base rates · `32` LLM labels · `40` AI review · `41` external validation (not in a job) · `42` gap analysis · `43` find_care() · `44` capability model |
+| `src/hc/` | shared library: `care` (Care Finder rules), `clean`, `profile`, `geo`, `io`, `naming`, `config`, `sources` |
 | `notebooks/_setup.py` | `%run ../_setup` → `cfg`, helpers on the path |
 | `backend/` | FastAPI decision engine over the gold Parquet export: `/api/recommend`, `/api/locations`, `/ws/live` (tests: `.venv/bin/pytest -q`) |
-| `voice_agent/` | LiveKit voice agent (Gemini Live): greeter → provider / patient personas, one grounded tool |
-| `apps/` | old placeholder; the web app is specified in `openspec/changes/add-web-app/` |
-| `docs/CHALLENGE.md` · `openspec/` | the brief, data findings, product spec |
+| `frontend/` | the care.in web page (React + Vite), built into the app by `scripts/build_app.sh` |
+| `voice_agent/` | LiveKit phone agent (Gemini Live): greeter → provider / patient personas, grounded tools only |
+| `docs/CHALLENGE.md` · `docs/CONFIDENCE_MODEL_SPEC.md` · `openspec/` | the brief and data findings, the confidence model design and results, product spec |
 
 ## Setup (once per person)
 
@@ -94,17 +97,8 @@ No CLI? Create a Git folder from this repo and run the notebooks in the order th
 * `hc_gold.dq_table_summary`, `hc_gold.dq_profile`: before/after data-quality scorecard (bronze vs silver)
 * `hc_gold.dq_cleaning_log`: every automated cleaning decision, per column. Fix wrong calls with the
   `overrides_json` job parameter (types, keep_string, primary_key, rename, drop, null_tokens)
-* `hc_gold.pred_<run>`, `hc_gold.model_leaderboard`, `hc_gold.model_feature_importance`: model template outputs
-
-## Modeling
-
-```bash
-databricks bundle run hc_model -t free --profile <name> \
-  --params source_table=<gold table>,target_col=<col>,id_cols=<ids>,exclude_cols=<leaky globs>,group_col=<col or blank>
-```
-
-There is no default table. `--params` replaces a parameter's default, so pass `exclude_cols` in full each time.
-Runs appear in MLflow under `/Users/<you>/hc_datathon_models`.
+* `hc_gold.model_eval`, `model_eval_bands`, `model_stress_tests`: capability model (`gold/44`) results on held-out hospitals
+* `hc_gold.district_service_gaps`: district x service access gap, NFHS-5 need and priority (`gold/42`)
 
 ## Tests
 

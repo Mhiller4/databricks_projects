@@ -4,7 +4,7 @@
 # environment_version = "6"
 # ///
 # MAGIC %md
-# MAGIC # 04 - District gap analysis for planners
+# MAGIC # Gold 42 · District gap analysis for planners
 # MAGIC
 # MAGIC For every district and service: **how far is the nearest facility with confident evidence**, and **how much
 # MAGIC need is there** (NFHS-5)? High need + far from confident care = a planning priority.
@@ -16,7 +16,7 @@
 # MAGIC | `hc_gold.district_service_gaps` | district x service: access gap, need, **gap score**, priority tier, plain-language reason |
 # MAGIC
 # MAGIC **Confident** = AI-adjusted confidence High or Medium and not excluded (from `care_finder_index_v2`;
-# MAGIC falls back to the rules confidence if 02 has not run). District centres come from `location_lookup`.
+# MAGIC falls back to the rules confidence if gold/40 has not run). District centres come from `location_lookup`.
 # MAGIC Distances are straight-line, so real travel is longer in hilly and rural areas.
 
 # COMMAND ----------

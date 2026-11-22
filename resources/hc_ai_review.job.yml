@@ -1,9 +1,9 @@
-# First AI review (find_the_right_care/02): guideline checklists, source quality, the risk-selected review queue,
+# First AI review (gold/40): guideline checklists, source quality, the risk-selected review queue,
 # Llama 3.3 70B review with quote checks, care_finder_index_v2, recommend_facilities_v2 and the audit sample.
-# Run by hand: it calls ai_query (resumable: finished batches are skipped) and rebuilds the tables above.
+# It calls ai_query (resumable: finished batches are skipped) and rebuilds the tables above.
 # audit_sample is only redrawn while no audit_answer has been filled in.
 #   databricks bundle run hc_ai_review -t free --profile <p>
-# Then run hc_confidence_model (it reads care_finder_index_v2 and llm_review).
+# Step 2 of hc_full_refresh (after hc_care_finder, before hc_confidence_model).
 
 resources:
   jobs:
@@ -17,4 +17,4 @@ resources:
       tasks:
         - task_key: llm_review
           notebook_task:
-            notebook_path: ../notebooks/find_the_right_care/02_llm_review.py
+            notebook_path: ../notebooks/gold/40_llm_review.py
