@@ -14,7 +14,7 @@ else
 fi
 
 rsync -a --exclude '__pycache__' "$ROOT/backend/app" "$OUT/"
-cp "$ROOT/src/hc/__init__.py" "$ROOT/src/hc/care.py" "$OUT/hc/"
+cp "$ROOT/src/hc/__init__.py" "$ROOT/src/hc/care.py" "$ROOT/src/hc/symptoms.py" "$OUT/hc/"
 cp "$ROOT/voice_agent/agent.py" "$ROOT/voice_agent/guidance.py" "$OUT/voice_agent/"
 cp "$ROOT/deploy/care_finder_app/"{app.yaml,start_app.sh,requirements.txt} "$OUT/"
 chmod +x "$OUT/start_app.sh"

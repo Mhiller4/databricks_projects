@@ -59,6 +59,11 @@ class RecommendRequest(BaseModel):
     session: str | None = Field(None, description="LiveKit room name; tags broadcasts so /monitor can group them")
 
 
+class SymptomRequest(BaseModel):
+    text: str = Field(..., examples=["my wife is 8 months pregnant and bleeding"])
+    who: Literal["", "any", "adult", "child", "newborn", "pregnant"] = ""
+
+
 class TokenRequest(BaseModel):
     role: Literal["provider", "patient"] | None = None
     language: str | None = None
@@ -147,6 +152,26 @@ def locations(q: str, limit: int = engine.SUGGEST_LIMIT):
     """Type-ahead for the location box: prefix matches from two characters (8 by default, at most 40;
     the voice agent asks for more so it can narrow by district)."""
     return engine.location_suggest(get_store(), q, limit=max(1, min(int(limit), 40)))
+
+
+@app.post("/api/symptoms/match")
+def symptoms_match(req: SymptomRequest):
+    """What the caller describes -> which services to look for (routing, not diagnosis; red flags first)."""
+    from hc import symptoms  # same hc package as engine.care
+
+    out = symptoms.match(req.text, req.who)
+    labels = {s.key: s.label for s in engine.care.SERVICES}
+    for s in out["services"]:
+        s["label"] = labels.get(s["service_key"], s["service_key"])
+    return out
+
+
+@app.get("/api/symptoms")
+def symptoms_map():
+    """The whole sign -> service map (also published as hc_gold.symptom_service_map)."""
+    from hc import symptoms
+
+    return symptoms.rows()
 
 
 @app.post("/api/recommend")

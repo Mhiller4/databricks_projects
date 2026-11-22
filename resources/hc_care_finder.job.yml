@@ -165,6 +165,11 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/silver/18_facilities_clean.py
 
+        - task_key: symptom_service_map
+          depends_on: [{ task_key: setup }]
+          notebook_task:
+            notebook_path: ../notebooks/gold/35_symptom_service_map.py
+
         - task_key: export_serving
           depends_on: [{ task_key: index_and_functions }]
           notebook_task:

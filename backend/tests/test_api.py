@@ -107,3 +107,24 @@ def test_audience_summaries_share_the_same_facts(client):
     assert "Here's why I picked" in prov["spoken"]["why"] and "number" in prov["spoken"]["why"]
     em = post(client, service="trauma", location="Lucknow", urgency="emergency", audience="patient")
     assert em["spoken_summary"].startswith("If it's life-threatening, please call 108")
+
+
+def test_symptoms_red_flag_and_routing(client):
+    r = client.post("/api/symptoms/match", json={"text": "my wife is 8 months pregnant and she is bleeding"}).json()
+    assert r["red_flag"] and r["urgency"] == "emergency" and "108" in r["advice"]
+    assert r["services"][0]["service_key"] == "emergency_c_section" and r["services"][0]["label"]
+    r = client.post("/api/symptoms/match", json={"text": "his kidneys are not working", "who": "adult"}).json()
+    assert [s["service_key"] for s in r["services"]] == ["dialysis"] and not r["red_flag"]
+
+
+def test_symptoms_general_and_unclear(client):
+    r = client.post("/api/symptoms/match", json={"text": "fever and cough"}).json()
+    assert r["general_care"] and not r["services"]
+    r = client.post("/api/symptoms/match", json={"text": "he is just not well"}).json()
+    assert r["menu"] and not r["services"]
+
+
+def test_symptom_map_covers_all_services(client):
+    rows = client.get("/api/symptoms").json()
+    services = {s["key"] for s in client.get("/api/services").json()}
+    assert services <= {r["service_key"] for r in rows}

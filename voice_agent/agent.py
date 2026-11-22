@@ -8,6 +8,7 @@ Call flow
 
 Tools (all grounded; the model never answers facility questions from its own knowledge):
     find_best_care  facilities for a service near a place (POST /api/recommend; spoken text written by templates)
+    match_symptoms  what the caller describes -> which services to look for (src/hc/symptoms.py; red flags -> 108 first)
     find_place      helps a caller who doesn't know their PIN: village, town, post office or district -> options
     list_services   the services Care Finder can search for
     get_guidance    fixed, team-approved guidance (voice_agent/guidance.py): what a service is in plain words,
@@ -64,7 +65,8 @@ You are care.in (say it as "care dot in"), a phone assistant that helps people i
 You sound like a calm, kind person on a health helpline: warm, unhurried, plain spoken.
 
 HOW A CONVERSATION GOES
-1. Find out what care is needed and where the patient is. A 6-digit PIN code or an area with its city
+1. Ask whether they know what kind of care they need, or would like to work it out together
+   (see WORKING OUT WHAT CARE THEY NEED). Then find out what care is needed and where the patient is. A 6-digit PIN code or an area with its city
    ("Bandra, Mumbai") works best. For a big city, ask which area. Say the place back to confirm it
    ("Darbhanga in Bihar, is that right?"). Read a PIN back digit by digit.
 2. Call find_best_care, one kind of care at a time.
@@ -117,6 +119,21 @@ WHEN THE CALLER DOESN'T KNOW THEIR PIN CODE
 - If you still can't find it, ask for the nearest bigger town or the district headquarters, search from
   there, and tell them distances are measured from that town.
 
+WORKING OUT WHAT CARE THEY NEED (when they're not sure, or describe a problem instead of a service)
+- Ask who it's for (an adult, a child, a newborn baby, or someone pregnant) and what's happening, in their words.
+- Call match_symptoms with what they said, in English, and who it's for.
+- If red_flag is true, first say the tool's "advice" (call 108), then keep helping find the place.
+- Then offer at most three options, using "options" in plain words with the reason, for example:
+  "It sounds like you may be looking for a heart unit that can open blocked arteries, or a 24-hour emergency
+  department, because of the chest pain. Which sounds closer?" If they can't choose, go with the first one.
+- Say the tool's "not_a_diagnosis" line once. Never name an illness the caller didn't name, and never say
+  what is wrong. You may say the tool's "advice" and "tell_them" lines, nothing more.
+- If general_care is true, say it isn't one of the specialised services you search, give the advice, and
+  suggest the nearest district hospital or a doctor.
+- If it returns a "menu", ask one short question offering three or four of those areas, then try again.
+- Then search with find_best_care for the chosen service. Use urgency "emergency" if the tool's urgency is emergency.
+  Don't call list_services after match_symptoms: the options already are services you cover.
+
 WHAT YOU CAN HELP WITH
 - If they ask what you can do, or ask for a service you're not sure about, call list_services and tell them
   in a few words. If what they need isn't on the list, say so kindly and suggest the nearest district hospital.
@@ -146,7 +163,7 @@ WHAT YOU MAY USE
   how sure we are, the reasons and cautions). Follow-ups come from any search on this call
   (recall_search gets an earlier one back exactly; recap_call summarises them all).
 - Places: only what find_place or find_best_care returned.
-- Services you cover: only list_services.
+- Services you cover: only list_services. Which service fits a problem: only match_symptoms.
 - Guidance: only get_guidance text. Emergency numbers 108, 102 and 112 always.
 - What the caller tells you about their need and location, for this call only.
 
@@ -187,9 +204,11 @@ YOU'RE TALKING TO A PATIENT OR A FAMILY MEMBER.
 
 PERSONA_INTRO = {
     "provider": "Briefly confirm you'll help them find a facility, then ask in one sentence for the service, "
-                "the patient's PIN code or locality, and whether it's an emergency.",
+                "the patient's PIN code or locality, and whether it's an emergency. If they're unsure of the service, "
+                "offer to work it out from what's happening.",
     "patient": "Say in one short sentence that you're here to help them find care, then ask whether this is an "
-               "emergency right now.",
+               "emergency right now. After that, ask whether they know what kind of care they need, or would like "
+               "to work it out together.",
 }
 
 
@@ -364,6 +383,33 @@ class CareAgent(Agent):
             "approximate_spelling": approximate,
             "options": [{"say": c["say"], "query": c["query"], "precise": c["is_precise"]} for c in found],
             "next": "Read back up to three options and ask which one. Then call find_best_care with its query.",
+        }, ensure_ascii=False)
+
+    @function_tool()
+    async def match_symptoms(self, context: RunContext, description: str, who: str = "") -> str:
+        """Work out which kind of care to look for from what the caller describes. Routing only, not a diagnosis.
+
+        Args:
+            description: What is happening, in the caller's words translated to English,
+                e.g. "my father has chest pain and is sweating".
+            who: "adult", "child", "newborn", "pregnant", or "" if not known.
+        """
+        log.info("match_symptoms who=%r (description not logged)", who)
+        try:
+            r = await self.http.post(f"{API}/api/symptoms/match", json={"text": description, "who": who if who in
+                                     ("adult", "child", "newborn", "pregnant") else ""})
+            r.raise_for_status()
+            m = r.json()
+        except Exception:
+            log.exception("symptom match failed")
+            return json.dumps({"status": "error", "say": "Sorry, I can't work that out right now. Is it an emergency? If so, call 108."})
+        return json.dumps({
+            "status": "ok" if (m["services"] or m["general_care"]) else "unclear",
+            "red_flag": m["red_flag"], "urgency": m["urgency"], "who": m["who"],
+            "options": [{"service": s["label"], "service_key": s["service_key"], "because": s["because"]} for s in m["services"]],
+            "general_care": m["general_care"],
+            "advice": m["advice"], "tell_them": m["tell_them"], "not_a_diagnosis": m["not_a_diagnosis"],
+            "menu": m["menu"],
         }, ensure_ascii=False)
 
     @function_tool()
