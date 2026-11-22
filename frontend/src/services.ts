@@ -1,25 +1,44 @@
-// Friendly names, icons and groups for the 16 Care Finder services (keys match src/hc/care.py).
-export interface ServiceInfo { icon: string; name: string; hint: string; group: string }
+import type { ServiceIconName } from './components/Icons'
 
-export const SERVICE_INFO: Record<string, ServiceInfo> = {
-  emergency_department: { icon: '🚨', name: 'Emergency room', hint: 'Open 24 hours', group: 'Urgent' },
-  trauma_care: { icon: '🚑', name: 'Accident / injury', hint: 'Trauma care', group: 'Urgent' },
-  burn_care: { icon: '🔥', name: 'Burns', hint: 'Burn unit', group: 'Urgent' },
-  icu: { icon: '🛏️', name: 'Intensive care', hint: 'ICU', group: 'Urgent' },
-  emergency_c_section: { icon: '🤰', name: 'Emergency C-section', hint: 'High-risk delivery', group: 'Mother & baby' },
-  maternity_delivery: { icon: '👶', name: 'Giving birth', hint: 'Normal delivery', group: 'Mother & baby' },
-  nicu: { icon: '🍼', name: 'Newborn intensive care', hint: 'NICU', group: 'Mother & baby' },
-  blood_bank: { icon: '🩸', name: 'Blood / transfusion', hint: 'Blood bank', group: 'Mother & baby' },
-  dialysis: { icon: '🫘', name: 'Kidney dialysis', hint: '2–3 times a week', group: 'Ongoing care' },
-  chemotherapy: { icon: '💊', name: 'Cancer chemotherapy', hint: 'Oncology', group: 'Ongoing care' },
-  radiotherapy: { icon: '☢️', name: 'Radiotherapy', hint: 'Cancer radiation', group: 'Ongoing care' },
-  cardiac_cath: { icon: '💓', name: 'Heart: angioplasty', hint: 'Cath lab', group: 'Heart & surgery' },
-  cardiac_surgery: { icon: '❤️', name: 'Heart surgery', hint: 'Bypass, valves', group: 'Heart & surgery' },
-  cataract_surgery: { icon: '👁️', name: 'Cataract surgery', hint: 'Eye operation', group: 'Heart & surgery' },
-  mri: { icon: '🧲', name: 'MRI scan', hint: 'Imaging', group: 'Scans' },
-  ct_scan: { icon: '🩻', name: 'CT scan', hint: 'Imaging', group: 'Scans' },
+// Friendly names, clinical icons, and groups for the 16 Care Finder services (keys match src/hc/care.py).
+export interface ServiceInfo {
+  icon: ServiceIconName
+  name: string
+  hint: string
+  group: string
+  featured?: boolean
 }
 
-export const GROUP_ORDER = ['Urgent', 'Mother & baby', 'Ongoing care', 'Heart & surgery', 'Scans']
+export const SERVICE_INFO: Record<string, ServiceInfo> = {
+  dialysis: { icon: 'kidney', name: 'Kidney dialysis', hint: 'Haemodialysis · 2–3×/wk', group: 'Ongoing care', featured: true },
+  emergency_c_section: { icon: 'maternity', name: 'Emergency C-section', hint: 'High-risk delivery · LSCS', group: 'Mother & baby', featured: true },
+  emergency_department: { icon: 'activity', name: 'Emergency room', hint: '24-hour casualty / ER', group: 'Urgent', featured: true },
+  nicu: { icon: 'baby', name: 'Newborn ICU', hint: 'NICU · neonatal care', group: 'Mother & baby', featured: true },
+  cardiac_cath: { icon: 'heart', name: 'Heart angioplasty', hint: 'Cardiac cath lab', group: 'Heart & surgery', featured: true },
+  mri: { icon: 'scan', name: 'MRI scan', hint: 'Diagnostic imaging', group: 'Diagnostics', featured: true },
+
+  trauma_care: { icon: 'ambulance', name: 'Accident & trauma', hint: 'Trauma centre', group: 'Urgent' },
+  burn_care: { icon: 'flame', name: 'Burn unit', hint: 'Specialized burns care', group: 'Urgent' },
+  icu: { icon: 'bed', name: 'Intensive care', hint: 'Adult ICU / critical care', group: 'Urgent' },
+  maternity_delivery: { icon: 'baby', name: 'Maternity delivery', hint: 'Normal obstetric delivery', group: 'Mother & baby' },
+  blood_bank: { icon: 'droplet', name: 'Blood bank', hint: 'Blood & transfusion', group: 'Mother & baby' },
+  chemotherapy: { icon: 'pill', name: 'Chemotherapy', hint: 'Medical oncology', group: 'Ongoing care' },
+  radiotherapy: { icon: 'radiation', name: 'Radiotherapy', hint: 'Radiation oncology', group: 'Ongoing care' },
+  cardiac_surgery: { icon: 'heart', name: 'Cardiac surgery', hint: 'Bypass & valve surgery', group: 'Heart & surgery' },
+  cataract_surgery: { icon: 'eye', name: 'Cataract surgery', hint: 'Ophthalmic surgery', group: 'Heart & surgery' },
+  ct_scan: { icon: 'scan', name: 'CT scan', hint: 'Diagnostic imaging', group: 'Diagnostics' },
+}
+
+export const FEATURED_SERVICE_KEYS = [
+  'dialysis',
+  'emergency_c_section',
+  'emergency_department',
+  'nicu',
+  'cardiac_cath',
+  'mri',
+]
+
+export const GROUP_ORDER = ['Urgent', 'Mother & baby', 'Ongoing care', 'Heart & surgery', 'Diagnostics']
 
 export const serviceName = (key: string, fallback = key) => SERVICE_INFO[key]?.name ?? fallback
+export const serviceIcon = (key: string): ServiceIconName => SERVICE_INFO[key]?.icon ?? 'activity'

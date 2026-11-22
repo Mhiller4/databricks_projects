@@ -1,135 +1,346 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { getConfig, recommend, type SearchArgs } from './api'
+import { IconMoon, IconPhone, IconPlus, IconSun } from './components/Icons'
+import { InfoPages, type InfoTab } from './components/InfoPages'
 import type { LocValue } from './components/LocationBox'
 import { ResultView } from './components/ResultView'
-import { CareStep, EmergencyStep, WhereStep, WhoStep } from './components/Steps'
-import { VoiceSheet } from './components/VoiceSheet'
+import { TriageCanvas } from './components/TriageCanvas'
+import { VoiceSheet, type VoiceTrigger } from './components/VoiceSheet'
 import { WhyHowDrawer } from './components/WhyHowDrawer'
-import { serviceName } from './services'
 import { T } from './strings'
 import type { Config, Payload, Rec, Role, Weights } from './types'
 
-type Step = 'who' | 'emergency' | 'care' | 'where' | 'result'
+type NavTab = 'find' | InfoTab
+
 const DEFAULT_WEIGHTS: Record<'routine' | 'emergency', Weights> = {
   routine: { proximity: 0.35, evidence: 0.3, trust: 0.2, depth: 0.15 },
   emergency: { proximity: 0.5, evidence: 0.25, trust: 0.15, depth: 0.1 },
 }
 const EMPTY_LOC: LocValue = { query: '', label: '', precise: null }
 
+function useTheme() {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = typeof window !== 'undefined' ? localStorage.getItem('cf-theme') : null
+    if (saved === 'light' || saved === 'dark') return saved
+    return typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches
+      ? 'dark'
+      : 'light'
+  })
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+    localStorage.setItem('cf-theme', theme)
+  }, [theme])
+
+  return [theme, () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))] as const
+}
+
 export default function App() {
+  const [theme, toggleTheme] = useTheme()
   const [cfg, setCfg] = useState<Config | null>(null)
-  const [step, setStep] = useState<Step>('who')
-  const [role, setRole] = useState<Role | null>(null)
+  const [tab, setTab] = useState<NavTab>('find')
+  const [role, setRole] = useState<Role>('patient')
   const [urgency, setUrgency] = useState<'routine' | 'emergency'>('routine')
-  const [service, setService] = useState('')
+  const [service, setService] = useState('dialysis')
   const [loc, setLoc] = useState<LocValue>(EMPTY_LOC)
   const [payload, setPayload] = useState<Payload | null>(null)
   const [busy, setBusy] = useState(false)
   const [drawer, setDrawer] = useState<Rec | null>(null)
   const [weights, setWeights] = useState<Weights>(DEFAULT_WEIGHTS.routine)
+  const [voiceTrigger, setVoiceTrigger] = useState<VoiceTrigger | null>(null)
   const last = useRef<SearchArgs | null>(null)
   const timer = useRef<number | undefined>(undefined)
 
-  useEffect(() => { getConfig().then(setCfg).catch(() => setCfg({ phone_number: '', services: [], funnel_base: {}, livekit_enabled: false })) }, [])
-  useEffect(() => { window.scrollTo({ top: 0, behavior: 'smooth' }) }, [step])
+  useEffect(() => {
+    getConfig()
+      .then(setCfg)
+      .catch(() => setCfg({ phone_number: '', services: [], funnel_base: {}, livekit_enabled: false }))
+  }, [])
 
-  const run = useCallback(async (args: SearchArgs) => {
-    last.current = args
-    setBusy(true)
-    try {
-      const p = await recommend(args)
-      setPayload(p)
-      setStep('result')
-      setDrawer((d) => (d && p.status === 'ok' ? [...(p.recommendations ?? []), ...(p.nearest_beyond_radius ?? [])].find((r) => r.facility_id === d.facility_id) ?? null : null))
-    } catch (e) {
-      setPayload({ status: 'error', message: `Search failed: ${(e as Error).message}`, query: { service, location: null, urgency: args.urgency } })
-      setStep('result')
-    } finally { setBusy(false) }
-  }, [service])
+  const run = useCallback(
+    async (args: SearchArgs) => {
+      last.current = args
+      setBusy(true)
+      setTab('find')
+      try {
+        const p = await recommend(args)
+        setPayload(p)
+        setDrawer((d) => {
+          if (!d || p.status !== 'ok') return null
+          const pool = [
+            ...(p.recommendations ?? []),
+            ...(p.nearest_beyond_radius ?? []),
+            ...(p.ranked ?? []),
+          ]
+          return pool.find((r) => r.facility_id === d.facility_id) ?? d
+        })
+      } catch (e) {
+        setPayload({
+          status: 'error',
+          message: `Search failed: ${(e as Error).message}`,
+          query: { service: args.service, location: null, urgency: args.urgency },
+        })
+      } finally {
+        setBusy(false)
+      }
+    },
+    [],
+  )
 
-  const go = (override?: LocValue) => {
-    const w = DEFAULT_WEIGHTS[urgency]
+  const handleSearch = (override?: {
+    service?: string
+    loc?: LocValue
+    urgency?: 'routine' | 'emergency'
+  }) => {
+    const svc = override?.service ?? service
+    const l = override?.loc ?? loc
+    const u = override?.urgency ?? urgency
+    if (override?.service !== undefined) setService(svc)
+    if (override?.loc !== undefined) setLoc(l)
+    if (override?.urgency !== undefined) setUrgency(u)
+    const w = DEFAULT_WEIGHTS[u]
     setWeights(w)
-    run({ service, location: (override ?? loc).query, urgency, weights: w, audience: role })
+    run({ service: svc, location: l.query, urgency: u, weights: w, audience: role })
   }
 
-  const onVoiceResult = useCallback((p: Payload) => {
-    setPayload(p)
-    setStep('result')
-    if (p.status === 'ok') {
-      const q = p.query as { service: { key: string }; location: { lat: number; lon: number; display_name: string; is_precise?: boolean }; urgency: 'routine' | 'emergency'; weights?: Weights }
-      setService(q.service.key)
-      setUrgency(q.urgency)
-      setLoc({ query: { lat: q.location.lat, lon: q.location.lon }, label: q.location.display_name, precise: q.location.is_precise ?? null })
-      if (q.weights) setWeights(q.weights)
-      last.current = { service: q.service.key, location: { lat: q.location.lat, lon: q.location.lon }, urgency: q.urgency, weights: q.weights ?? null, audience: role }
-    }
-  }, [role])
+  const handleQuickExample = (ex: {
+    service: string
+    location: string
+    urgency: 'routine' | 'emergency'
+  }) => {
+    const nextLoc: LocValue = { query: ex.location, label: ex.location, precise: null }
+    handleSearch({ service: ex.service, loc: nextLoc, urgency: ex.urgency })
+  }
+
+  const onVoiceResult = useCallback(
+    (p: Payload) => {
+      setPayload(p)
+      setTab('find')
+      if (p.status === 'ok') {
+        const q = p.query as {
+          service: { key: string }
+          location: { lat: number; lon: number; display_name: string; is_precise?: boolean }
+          urgency: 'routine' | 'emergency'
+          weights?: Weights
+        }
+        setService(q.service.key)
+        setUrgency(q.urgency)
+        setLoc({
+          query: { lat: q.location.lat, lon: q.location.lon },
+          label: q.location.display_name.replace(' (post office)', ''),
+          precise: q.location.is_precise ?? null,
+        })
+        if (q.weights) setWeights(q.weights)
+        last.current = {
+          service: q.service.key,
+          location: { lat: q.location.lat, lon: q.location.lon },
+          urgency: q.urgency,
+          weights: q.weights ?? null,
+          audience: role,
+        }
+      }
+    },
+    [role],
+  )
 
   const onWeights = (w: Weights) => {
     setWeights(w)
     window.clearTimeout(timer.current)
-    timer.current = window.setTimeout(() => last.current && run({ ...last.current, weights: w }), 150)
+    timer.current = window.setTimeout(() => {
+      if (last.current) run({ ...last.current, weights: w })
+    }, 150)
   }
+
   const onMove = (p: { lat: number; lon: number }) => {
     if (!last.current) return
     setLoc({ query: p, label: `${p.lat.toFixed(4)}, ${p.lon.toFixed(4)}`, precise: true })
     run({ ...last.current, location: p })
   }
-  const onClarify = (q: string) => { setLoc({ query: q, label: q, precise: null }); if (last.current) run({ ...last.current, location: q }) }
-  const restart = () => { setStep('who'); setRole(null); setService(''); setLoc(EMPTY_LOC); setPayload(null); setUrgency('routine'); setDrawer(null) }
 
-  const order: Step[] = role === 'patient' ? ['who', 'emergency', 'care', 'where'] : ['who', 'care', 'where']
-  const idx = order.indexOf(step)
-  const back = () => { if (step === 'result') setStep('where'); else if (idx > 0) setStep(order[idx - 1]) }
+  const onClarify = (q: string) => {
+    setLoc({ query: q, label: q, precise: null })
+    if (last.current) run({ ...last.current, location: q })
+  }
+
+  const resetToHome = () => {
+    setTab('find')
+    setPayload(null)
+    setDrawer(null)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  const triggerVoice = (mode: 'voice' | 'text') => {
+    setVoiceTrigger((v) => ({ mode, seq: (v?.seq ?? 0) + 1 }))
+  }
+
+  const showResults = tab === 'find' && payload !== null
 
   return (
-    <div className={`app step-${step}`}>
-      <header className="bar">
-        <button className="brand" onClick={restart} aria-label="Start over">
-          <span className="logo" aria-hidden="true">+</span><span><strong>{T.appName}</strong><span className="muted small">Find the right care in India</span></span>
-        </button>
-        <div className="bar-right">
-          {cfg?.phone_number && <a className="phone" href={`tel:${cfg.phone_number.replace(/\s/g, '')}`}>📞 <span className="hide-sm">Call </span>{cfg.phone_number}</a>}
-          <a className="sos" href="tel:108" aria-label="Call 108 ambulance">108</a>
+    <div className="app">
+      {/* Persistent Clinical Top Bar — 108 SOS stays strictly pinned top-right */}
+      <header className="topbar">
+        <div className="topbar-inner">
+          <button type="button" className="brand" onClick={resetToHome} aria-label="Care Finder home">
+            <span className="logo">
+              <IconPlus size={18} />
+            </span>
+            <span className="brand-text">
+              <strong>{T.appName}</strong>
+              <span className="brand-sub hide-xs">India Clinical Directory</span>
+            </span>
+          </button>
+
+          <nav className="topnav" aria-label="Primary navigation">
+            {(
+              [
+                ['find', 'Find Care'],
+                ['methodology', 'How It Works'],
+                ['about', 'About'],
+                ['policy', 'Policy'],
+              ] as const
+            ).map(([key, label]) => (
+              <button
+                key={key}
+                type="button"
+                className={`nav-link ${tab === key ? 'on' : ''}`}
+                onClick={() => {
+                  setTab(key)
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </nav>
+
+          <div className="bar-right">
+            {cfg?.phone_number && (
+              <a
+                className="helpline-pill hide-sm"
+                href={`tel:${cfg.phone_number.replace(/\s/g, '')}`}
+              >
+                <IconPhone size={14} />
+                <span>{cfg.phone_number}</span>
+              </a>
+            )}
+            <button
+              type="button"
+              className="icon-btn theme-btn"
+              onClick={toggleTheme}
+              aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+              title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
+            >
+              {theme === 'dark' ? <IconSun size={17} /> : <IconMoon size={17} />}
+            </button>
+            <a className="sos-pill" href="tel:108" aria-label="Call 108 emergency ambulance">
+              108 SOS
+            </a>
+          </div>
         </div>
       </header>
 
-      {step !== 'who' && (
-        <nav className="crumbs" aria-label="Progress">
-          <button className="link" onClick={back}>← Back</button>
-          {step !== 'result' && <span className="muted small">Step {idx + 1} of {order.length}</span>}
-          <span className="crumb-chips">
-            {role && <span className="crumb">{role === 'patient' ? 'Patient / family' : 'Health worker'}</span>}
-            {urgency === 'emergency' && <span className="crumb crumb-red">Emergency</span>}
-            {service && step !== 'care' && <button className="crumb" onClick={() => setStep('care')}>{serviceName(service)}</button>}
-          </span>
-        </nav>
-      )}
+      <main className={`main ${showResults ? 'main-wide' : tab !== 'find' ? 'main-prose' : 'main-canvas'}`}>
+        {tab === 'find' && !payload && (
+          <TriageCanvas
+            cfg={cfg}
+            role={role}
+            onRole={setRole}
+            urgency={urgency}
+            onUrgency={setUrgency}
+            service={service}
+            onService={setService}
+            loc={loc}
+            onLoc={setLoc}
+            busy={busy}
+            onSearch={handleSearch}
+            onStartVoice={triggerVoice}
+            onQuickExample={handleQuickExample}
+            onNavigate={(t) => {
+              setTab(t)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
+        )}
 
-      <main className={step === 'result' ? 'main wide' : 'main'}>
-        {step === 'who' && (
-          <>
-            <p className="intro">Tell us what care is needed and where. We’ll show the best place to go, why we chose it, and how sure we are.</p>
-            <WhoStep onPick={(r) => { setRole(r); setStep(r === 'patient' ? 'emergency' : 'care') }} />
-          </>
+        {showResults && payload && (
+          <ResultView
+            payload={payload}
+            role={role}
+            services={cfg?.services ?? []}
+            loc={loc}
+            onLoc={setLoc}
+            urgency={urgency}
+            weights={weights}
+            busy={busy}
+            voiceEnabled={!!cfg?.livekit_enabled}
+            onOpen={setDrawer}
+            onClarify={onClarify}
+            onMove={onMove}
+            onUpdateSearch={handleSearch}
+            onWeights={onWeights}
+            onRoleChange={setRole}
+            onStartVoice={() => triggerVoice('voice')}
+            onBackHome={resetToHome}
+          />
         )}
-        {step === 'emergency' && <EmergencyStep onAnswer={(e) => { setUrgency(e ? 'emergency' : 'routine'); setStep('care') }} />}
-        {step === 'care' && <CareStep services={cfg?.services ?? []} onPick={(k) => { setService(k); if (payload && last.current) run({ ...last.current, service: k }); else setStep('where') }} />}
-        {step === 'where' && (
-          <WhereStep loc={loc} onLoc={setLoc} onGo={go} urgency={urgency} onUrgency={setUrgency} showUrgency={role !== 'patient'} busy={busy} />
+
+        {tab !== 'find' && (
+          <InfoPages
+            tab={tab}
+            cfg={cfg}
+            onStartSearch={() => {
+              setTab('find')
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+          />
         )}
-        {step === 'result' && payload && (
-          <ResultView payload={payload} role={role} onOpen={setDrawer} onClarify={onClarify}
-                      onEditPlace={() => setStep('where')} onEditCare={() => setStep('care')} onMove={onMove} />
-        )}
-        {busy && step !== 'result' && <div className="loading" role="status">Finding the best options…</div>}
       </main>
 
-      <footer className="foot muted small">{T.footer}</footer>
-      <VoiceSheet enabled={!!cfg?.livekit_enabled} role={role} onResult={onVoiceResult} />
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <div className="footer-left">
+            <span className="footer-brand">
+              <span className="logo logo-sm">
+                <IconPlus size={13} />
+              </span>
+              <strong>{T.appName}</strong>
+            </span>
+            <span className="muted small">{T.footer}</span>
+          </div>
+          <div className="footer-links">
+            <button type="button" className="link-subtle small" onClick={() => setTab('methodology')}>
+              How It Works
+            </button>
+            <button type="button" className="link-subtle small" onClick={() => setTab('about')}>
+              About
+            </button>
+            <button type="button" className="link-subtle small" onClick={() => setTab('policy')}>
+              Clinical Policy
+            </button>
+            <a className="link-subtle small" href="/monitor">
+              Live Monitor
+            </a>
+          </div>
+        </div>
+      </footer>
+
+      <VoiceSheet
+        enabled={!!cfg?.livekit_enabled}
+        role={role}
+        onResult={onVoiceResult}
+        trigger={voiceTrigger}
+        showFab={showResults}
+      />
+
       {drawer && payload?.status === 'ok' && (
-        <WhyHowDrawer rec={drawer} payload={payload} weights={weights} onWeights={onWeights} onClose={() => setDrawer(null)} />
+        <WhyHowDrawer
+          rec={drawer}
+          payload={payload}
+          weights={weights}
+          defaultWeights={DEFAULT_WEIGHTS[urgency]}
+          onWeights={onWeights}
+          onClose={() => setDrawer(null)}
+        />
       )}
     </div>
   )
