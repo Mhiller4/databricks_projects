@@ -133,7 +133,8 @@ for fam, pats in NEED_FAMILIES.items():
     print(f"{fam}: {[c for c, _ in chosen[fam]]}")
 
 need_cols = sorted({c for fam in chosen for c, _ in chosen[fam]})
-d = nfhs.select(F.col("district_name"), F.col("state_ut"), *[F.col(c).cast("double").alias(c) for c in need_cols])
+d = nfhs.select(F.col("district_name"), F.col("state_ut"), # NFHS-5 puts small-sample estimates in brackets, e.g. "(58.1)", and suppressed values as "*": strip the brackets, null the rest
+                *[F.expr(f"try_cast(regexp_replace(cast(`{c}` AS STRING), '[()]', '') AS DOUBLE)").alias(c) for c in need_cols])
 d = d.dropDuplicates(["district_name", "state_ut"])
 for fam, items in chosen.items():
     pct_cols = []

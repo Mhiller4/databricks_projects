@@ -529,7 +529,12 @@ aud = (spark.table(f"{GOLD}.care_finder_index_v2")
                F.lit(None).cast("string").alias("audit_answer"), F.lit(None).cast("string").alias("audit_notes"),
                F.lit(None).cast("string").alias("checked_by"))
        .limit(50))
-save(aud, f"{GOLD}.audit_sample")
+# never overwrite hand-filled answers: only (re)draw the sample while no audit_answer has been entered
+AUD_T = f"{GOLD}.audit_sample"
+if spark.catalog.tableExists(AUD_T) and spark.table(AUD_T).where("audit_answer IS NOT NULL AND audit_answer <> ''").limit(1).count():
+    print(f"{AUD_T} already has audit answers: kept as is")
+else:
+    save(aud, AUD_T)
 
 # COMMAND ----------
 

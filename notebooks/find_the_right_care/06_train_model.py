@@ -38,7 +38,7 @@ dbutils.library.restartPython()
 import re, json, math
 import numpy as np
 import pandas as pd
-from pyspark.sql import functions as F
+from pyspark.sql import functions as F, Window
 
 GOLD = "workspace.hc_gold"
 FAC = "workspace.hc_silver.vf_facilities"
@@ -47,7 +47,7 @@ V2 = f"{GOLD}.care_finder_index_v2"
 USE_EMBEDDINGS = True                       # set False if Serving has no embedding model
 EMBED_MODEL = "databricks-gte-large-en"     # <- check the Serving page (gte / bge embedding model)
 SEED = 42
-MODEL_VERSION = "capability_v1"
+MODEL_VERSION = "capability_v2_llm_labels"
 
 def save_pdf(pdf, name):
     spark.createDataFrame(pdf).write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(name)
@@ -66,10 +66,19 @@ pairs = (v2.select("facility_id", "service_key", "evidence_score", "confidence",
                    "reviewed", "llm_verdict", "ungrounded_answer")
            .dropDuplicates(["facility_id", "service_key"]))
 
-labels = (pairs.where("reviewed AND llm_verdict <> 'error' AND NOT coalesce(ungrounded_answer, false)")
-               .withColumn("label", F.when(F.col("llm_verdict") == "available", 1).otherwise(0))
-               .join(spark.table(f"{GOLD}.llm_review_queue").select("facility_id", "service_key", "reason"),
-                     ["facility_id", "service_key"], "left"))
+# Labels: hc_gold.llm_labels (gold/32): 1,200 random pairs (25 per service x rules confidence, with population
+# weights) + the 200 risk-selected pairs from this notebook's first review. Same prompt, same quote check
+# (an "available" answer with no verified quote is already "unclear" there). The 43 audit pairs stay out of
+# training so the human audit is independent. Label rule unchanged: available = 1, anything else = 0.
+labels = (spark.table(f"{GOLD}.llm_labels")
+          .where("origin <> 'audit' AND llm_verdict IS NOT NULL AND coalesce(error, '') = ''")
+          .withColumn("label", F.when(F.col("llm_verdict") == "available", 1).otherwise(0))
+          .withColumn("reason", F.when(F.col("origin") == "random", F.lit("5_random_sample")).otherwise(F.col("origin")))
+          .withColumn("sample_weight", F.when(F.col("origin") == "random", F.col("sample_weight")))
+          .withColumn("_o", F.when(F.col("origin") == "random", 0).otherwise(1))
+          .withColumn("_r", F.row_number().over(Window.partitionBy("facility_id", "service_key").orderBy("_o")))
+          .where("_r = 1")
+          .select("facility_id", "service_key", "label", "reason", "sample_weight"))
 display(labels.groupBy("reason").pivot("label").count().orderBy("reason"))
 display(labels.groupBy("service_key").pivot("label").count().orderBy("service_key"))
 
@@ -95,7 +104,7 @@ svc = (spark.table(f"{GOLD}.service_catalog").select("service_key", "label", "pa
        .join(spark.table(f"{GOLD}.guideline_rules").select("service_key", "required_elements"), "service_key", "left"))
 
 pdf = (pairs.join(fac, "facility_id", "left")
-            .join(labels.select("facility_id", "service_key", "label", "reason"), ["facility_id", "service_key"], "left")
+            .join(labels.select("facility_id", "service_key", "label", "reason", "sample_weight"), ["facility_id", "service_key"], "left")
             .toPandas())
 svc_pdf = svc.toPandas()
 print(f"{len(pdf):,} facility x service pairs, {pdf.label.notna().sum():,} labelled")
@@ -351,6 +360,35 @@ display(pd.DataFrame(strata))
 
 # COMMAND ----------
 
+# Held-out bands on the random-sample test rows, weighted to all ~40k pairs (each random row stands for pop_n / 25 pairs).
+# Compares Mekeli's rules bands, the model's bands (same cut-offs as Step 7: >= 0.70 High, >= 0.40 Medium) and the
+# stricter of the two. "Holds up" = the LLM said available.
+RANK = {"High": 3, "Medium": 2, "Low": 1}
+NAME = {3: "High", 2: "Medium", 1: "Low"}
+tr_ = test[rnd].copy()
+p_main = models["lightgbm"].predict_proba(Xte)[:, 1][rnd]
+tr_["rules_band"] = tr_.confidence.map(RANK).fillna(1).astype(int)
+tr_["model_band"] = np.select([p_main >= 0.70, p_main >= 0.40], [3, 2], 1)
+tr_["stricter_band"] = np.minimum(tr_.rules_band, tr_.model_band)
+tr_["average_up_band"] = np.ceil((tr_.rules_band + tr_.model_band) / 2).astype(int)   # used in Step 7
+w_ = tr_.sample_weight.fillna(1.0).values
+band_rows = []
+for method in ["rules_band", "model_band", "stricter_band", "average_up_band"]:
+    for b in [3, 2, 1]:
+        m_ = (tr_[method] == b).values
+        band_rows.append(dict(method=method.replace("_band", ""), band=NAME[b], n_test_rows=int(m_.sum()),
+                              share_of_all_pairs=float(w_[m_].sum() / w_.sum()),
+                              holds_up=float(np.average(tr_.label.values[m_], weights=w_[m_])) if m_.any() else float("nan")))
+band_rows.append(dict(method="lightgbm (auc, weighted)", band="all", n_test_rows=int(rnd.sum()), share_of_all_pairs=1.0,
+                      holds_up=float(roc_auc_score(tr_.label, p_main, sample_weight=w_))))
+band_rows.append(dict(method="rules evidence_score (auc, weighted)", band="all", n_test_rows=int(rnd.sum()), share_of_all_pairs=1.0,
+                      holds_up=float(roc_auc_score(tr_.label, tr_.evidence_score.fillna(0), sample_weight=w_))))
+bands = pd.DataFrame(band_rows).assign(run_id=run_id, n_test_facilities=int(tr_.facility_id.nunique()))
+save_pdf(bands, f"{GOLD}.model_eval_bands")
+display(bands)
+
+# COMMAND ----------
+
 # Per-service results for the main model
 main = models["lightgbm"]; T = thresholds["lightgbm"]
 pte = main.predict_proba(Xte)[:, 1]
@@ -463,7 +501,7 @@ display(pdf[["service_key", "model_prob", "model_reasons", "label"]].sample(15, 
 # MAGIC |---|---|
 # MAGIC | LLM said not available / planned / referral | excluded (unchanged) |
 # MAGIC | LLM reviewed (available / unclear) | LLM-adjusted evidence from `02` (unchanged) |
-# MAGIC | Not reviewed by the LLM | **model probability** (capped at 0.30 for travel-only sources) |
+# MAGIC | Not reviewed by the LLM | band = **average of the rules band and the model band, rounded up** (model probability capped at 0.30 for travel-only sources) |
 # MAGIC
 # MAGIC Same column names as `care_finder_index_v2`, so `find_care()` and the gap analysis just read the new table.
 
@@ -471,19 +509,29 @@ display(pdf[["service_key", "model_prob", "model_reasons", "label"]].sample(15, 
 
 ms = spark.table(f"{GOLD}.model_scores").select("facility_id", "service_key", "model_prob", "model_reasons")
 final = (spark.table(V2).join(ms, ["facility_id", "service_key"], "left")
-    .withColumn("evidence_source", F.when(F.col("reviewed"), "AI review").when(F.col("model_prob").isNotNull(), "trained model").otherwise("rules"))
+    .withColumn("evidence_source", F.when(F.col("reviewed"), "AI review").when(F.col("model_prob").isNotNull(), "rules + trained model").otherwise("rules"))
     .withColumn("adj_evidence",
         F.when(F.col("reviewed") | F.col("model_prob").isNull(), F.col("adj_evidence"))
          .when(F.coalesce(F.col("travel_only"), F.lit(False)), F.least(F.col("model_prob"), F.lit(0.30)))
          .otherwise(F.col("model_prob")))
     .withColumn("adj_evidence", F.round("adj_evidence", 3))
     .withColumn("adjusted_base_score", F.round(F.col("adj_evidence") * F.col("trust_score") * F.col("type_fit"), 4))
+    # Not reviewed: average of the rules band and the model band (High 3 / Medium 2 / Low 1), rounded up.
+    # Held-out (random-sample test rows, population-weighted) this beat either alone: High holds up ~78% while
+    # covering ~26% of pairs (rules: 77% / 11%), and Low holds up ~2% (rules: 8%). See model_eval_bands.
+    .withColumn("rules_rank", F.when(F.col("confidence") == "High", 3).when(F.col("confidence") == "Medium", 2).otherwise(1))
+    .withColumn("model_band", F.when(F.col("adj_evidence") >= 0.70, "High").when(F.col("adj_evidence") >= 0.40, "Medium").otherwise("Low"))
+    .withColumn("model_rank", F.when(F.col("model_band") == "High", 3).when(F.col("model_band") == "Medium", 2).otherwise(1))
+    .withColumn("combined_rank", F.ceil((F.col("rules_rank") + F.col("model_rank")) / 2))
     .withColumn("adjusted_confidence",
         F.when(F.col("excluded"), "Excluded")
          .when(F.col("reviewed"), F.col("adjusted_confidence"))
-         .when(F.col("adj_evidence") >= 0.70, "High").when(F.col("adj_evidence") >= 0.40, "Medium").otherwise("Low"))
-    .withColumn("all_cautions", F.when(F.col("evidence_source") == "trained model",
-        F.concat(F.col("all_cautions"), F.array(F.concat(F.lit("Model estimate (not individually reviewed): "),
+         .when(F.col("model_prob").isNull(), F.col("confidence"))
+         .when(F.col("combined_rank") >= 3, "High").when(F.col("combined_rank") >= 2, "Medium").otherwise("Low"))
+    .withColumn("model_band", F.when(F.col("evidence_source") == "rules + trained model", F.col("model_band")))
+    .drop("rules_rank", "model_rank", "combined_rank")
+    .withColumn("all_cautions", F.when(F.col("evidence_source") == "rules + trained model",
+        F.concat(F.col("all_cautions"), F.array(F.concat(F.lit("Rules + model estimate (not individually reviewed): "),
                                                          F.concat_ws(", ", "model_reasons")))))
         .otherwise(F.col("all_cautions"))))
 final.write.mode("overwrite").option("overwriteSchema", "true").saveAsTable(f"{GOLD}.care_finder_index_final")
