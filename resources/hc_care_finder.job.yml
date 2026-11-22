@@ -152,6 +152,11 @@ resources:
           notebook_task:
             notebook_path: ../notebooks/gold/31_ihds_base_rates.py
 
+        - task_key: facilities_curated
+          depends_on: [{ task_key: index_and_functions }, { task_key: facility_districts }, { task_key: external_corroboration }, { task_key: silver_ihds }]
+          notebook_task:
+            notebook_path: ../notebooks/silver/17_facilities_curated.py
+
         - task_key: export_serving
           depends_on: [{ task_key: index_and_functions }]
           notebook_task:

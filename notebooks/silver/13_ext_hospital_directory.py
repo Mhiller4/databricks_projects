@@ -20,6 +20,7 @@ from pyspark.sql import Window
 
 from hc import care, ext, geo
 from hc.io import write_table
+from hc.text import LIST_SPLIT, clean_text
 
 B, S = cfg.bronze, cfg.silver
 BB = care.INDIA_BBOX
@@ -27,12 +28,16 @@ d = spark.table(B("ext_nhp_hospital_directory"))
 
 
 def nz(c):
-    v = F.trim(F.col(c))
+    """Normalise text (literal \\n, line breaks, invisible chars, HTML entities); placeholders -> NULL."""
+    v = clean_text(F.col(c))
     return F.when(~F.lower(v).isin("", "0", "na", "n/a", "error", "null", "-"), v)
 
 
 def arr(c):
-    return F.filter(F.transform(F.split(nz(c), ","), lambda x: F.trim(x)), lambda x: F.length(x) > 0)
+    """Free-text lists use commas, semicolons, pipes AND literal \\n as separators."""
+    raw = F.when(~F.lower(F.trim(F.col(c))).isin("", "0", "na", "n/a", "error", "null", "-"), F.col(c))
+    parts = F.transform(F.split(raw, LIST_SPLIT), lambda x: F.regexp_replace(clean_text(x), r"[.]+$", ""))
+    return F.array_distinct(F.filter(parts, lambda x: F.length(x) > 1))
 
 
 lat = F.expr("try_cast(trim(get(split(location_coordinates, ','), 0)) AS DOUBLE)")

@@ -78,3 +78,37 @@ STATES = {
     25: "Daman & Diu", 27: "Maharashtra", 28: "Andhra Pradesh", 29: "Karnataka", 30: "Goa", 31: "Lakshadweep",
     32: "Kerala", 33: "Tamil Nadu", 34: "Puducherry",
 }
+
+# Text patterns that recognise each IHDS service in Virtue Foundation claims or directory text
+# (lower-cased, Java/Python-compatible regex). Used by silver/17 to put every facility on the survey's
+# service vocabulary, so "what the survey says facilities like this usually offer" can be compared with
+# "what this facility's own text says".
+SERVICE_TEXT_PATTERNS = {
+    "MF13A": r"immuni[sz]ation|vaccinat|\bvaccine",
+    "MF13B": r"oral (contraceptive|pill)|contracept",
+    "MF13C": r"\biud\b|copper[- ]?t\b|intra ?uterine device",
+    "MF13D": r"vasectomy|\bnsv\b",
+    "MF13E": r"tubectomy|tubal ligation|female sterili[sz]ation|laparoscopic sterili[sz]ation",
+    "MF13F": r"injectable contracept|depo[- ]?provera|antara",
+    "MF13G": r"abscess|incision and drainage|\bi ?& ?d\b",
+    "MF13H": r"\biv fluid|intravenous fluid|saline drip|\bdrip\b",
+    "MF13I": r"fracture|broken bone|bone setting|plaster cast|orthop(a)?edic",
+    "MF13J": r"gyn(a)?ecolog|gynae",
+    "MF13K": r"\bst[di]s?\b|sexually transmitted|venereal|\bhiv\b",
+    "MF13L": r"tuberculosis|\bdots\b|\btb\b",
+    "MF13M": r"antenatal|ante-natal|prenatal|pre-natal|\banc\b|pregnancy care",
+    "MF13N": r"eye (exam|check|care)|ophthalm|vision test|optometr",
+    "MF13O": r"diarrh(o)?ea|gastroenteritis|dehydration",
+    "MF13P": r"wound (dressing|care)|dressing",
+    "MF13Q": r"suturing|stitch|wound closure",
+    "MF13R": r"malaria",
+    "MF13S": r"fever|general (medicine|physician)|\bopd\b|out-?patient",
+    "MF13T": r"rabies|dog bite|animal bite",
+    "MF13U": r"deliver(y|ies)|childbirth|labou?r room|maternity",
+    "MF13V": r"\bmtp\b|abortion|termination of pregnancy|\bd ?& ?c\b|dilatation and curettage",
+    "MF13W": r"blood (bank|transfusion|storage)|transfusion",
+    "MF13X": r"cataract|phaco",
+    "MF13Y": r"laparotomy|appendic(itis|ectomy)|hernia|cholecystectomy|abdominal surgery|general surgery",
+    "MF13Z": r"cardiac surgery|heart surgery|cabg|bypass surgery|open heart|valve replacement",
+}
+LIKELY_THRESHOLD_PCT = 70.0  # a service that >= 70% of surveyed peers offer is "likely, not listed" when the text is silent

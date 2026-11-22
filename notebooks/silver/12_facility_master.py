@@ -24,6 +24,7 @@
 from hc import care
 from hc.geo import haversine_km
 from hc.io import write_table
+from hc.text import clean_text
 
 S = cfg.silver
 B = care.INDIA_BBOX
@@ -35,14 +36,14 @@ def k(c):
 
 
 def s(c):
-    """Trim, strip wrapping quotes, empty -> NULL."""
-    v = F.trim(F.regexp_replace(F.col(c).cast("string"), '^"+|"+$', ""))
+    """Normalise text (escaped \\n, line breaks, invisible chars, HTML entities), strip wrapping quotes, empty -> NULL."""
+    v = F.trim(F.regexp_replace(clean_text(F.col(c)), '^"+|"+$', ""))
     return F.when(F.length(v) > 0, v)
 
 
 def arr(c):
     parsed = F.coalesce(F.from_json(F.col(c), "array<string>"), F.array().cast("array<string>"))
-    return F.array_distinct(F.filter(F.transform(parsed, lambda x: F.trim(x)), lambda x: F.length(x) > 0))
+    return F.array_distinct(F.filter(F.transform(parsed, lambda x: clean_text(x)), lambda x: F.length(x) > 0))
 
 
 def first(a):

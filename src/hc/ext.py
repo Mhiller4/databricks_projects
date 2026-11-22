@@ -101,3 +101,49 @@ def map_pmjay(name: str, table=PMJAY_PROCEDURE_TO_SERVICE) -> str | None:
         if re.search(rx, n):
             return svc
     return None
+
+
+# ---------------------------------------------------------------------------------------------
+# Specialty normalisation: VF codes ("gynecologyAndObstetrics") and directory free text
+# ("Obstetrics and Gynacology", "Orthopaedics") -> one shared vocabulary ("obstetrics and gynecology")
+# ---------------------------------------------------------------------------------------------
+
+SPECIALTY_SUFFIXES = r"\s+(wing|department|dept|services?|unit|clinic|centre|center|ward)$"
+SPECIALTY_SYNONYMS = {
+    # spelling variants
+    "orthopaedics": "orthopedics", "orthopaedic surgery": "orthopedic surgery", "ortho": "orthopedics",
+    "paediatrics": "pediatrics", "paediatric": "pediatrics", "pediatric": "pediatrics",
+    "gynaecology": "obstetrics and gynecology", "gynecology": "obstetrics and gynecology", "gynacology": "obstetrics and gynecology",
+    "obstetrics and gynaecology": "obstetrics and gynecology", "gynaecology and obstetrics": "obstetrics and gynecology",
+    "gynecology and obstetrics": "obstetrics and gynecology", "obstetrics and gynacology": "obstetrics and gynecology",
+    "obstetrics": "obstetrics and gynecology", "obg": "obstetrics and gynecology", "obgyn": "obstetrics and gynecology",
+    "opthamology": "ophthalmology", "opthalmology": "ophthalmology", "ophthalmic": "ophthalmology", "eye": "ophthalmology",
+    "anaesthesiology": "anesthesiology", "anaesthesia": "anesthesiology", "anesthesia": "anesthesiology",
+    "haematology": "hematology", "oncology": "oncology", "medical oncology": "oncology",
+    "neuro surgery": "neurosurgery", "neuro": "neurology", "neurosurgery": "neurosurgery",
+    "nephro": "nephrology", "gastro": "gastroenterology", "gastro enterology": "gastroenterology",
+    "cardio": "cardiology", "cardiac": "cardiology", "cardiovascular surgery": "cardiothoracic surgery",
+    "ctvs": "cardiothoracic surgery", "cardio thoracic surgery": "cardiothoracic surgery",
+    "ent": "otolaryngology", "ear nose and throat": "otolaryngology", "otorhinolaryngology": "otolaryngology",
+    "dental": "dentistry", "dentist": "dentistry", "skin": "dermatology", "derma": "dermatology",
+    "general medicine": "internal medicine", "medicine": "internal medicine", "physician": "internal medicine",
+    "chest": "pulmonology", "pulmonary medicine": "pulmonology", "respiratory medicine": "pulmonology",
+    "physiotherapy": "physical therapy", "physio": "physical therapy", "neonatology": "neonatology",
+    "emergency": "emergency medicine", "casualty": "emergency medicine", "accident and emergency": "emergency medicine",
+    "emergency and trauma care": "emergency medicine",
+    "psychiatric": "psychiatry", "radio diagnosis": "radiology", "radiodiagnosis": "radiology",
+}
+
+
+def normalize_specialty(v: str | None) -> str | None:
+    """Python twin of the Spark normalisation in silver/17: camelCase split, lower, '&' -> 'and',
+    drop punctuation and trailing 'wing / department / unit', then map synonyms."""
+    if not v:
+        return None
+    s = re.sub(r"([a-z])([A-Z])", r"\1 \2", v)
+    s = s.lower().replace("&", " and ")
+    s = re.sub(r"[^a-z0-9 ]", " ", s)
+    s = re.sub(r"\s+", " ", s).strip()
+    s = re.sub(SPECIALTY_SUFFIXES, "", s).strip()
+    s = SPECIALTY_SYNONYMS.get(s, s)
+    return s if len(s) > 1 else None

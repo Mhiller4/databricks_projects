@@ -133,6 +133,34 @@ def test_ihds_codes():
     assert all(v in ihds.SERVICES or v in ihds.EQUIPMENT for r in ihds.SERVICE_PROXIES.values() for v in r["all"])
 
 
+def test_text_cleaning():
+    from hc.text import clean_text_py, split_list_py
+
+    assert clean_text_py("Cardiology\\nUrology") == "Cardiology Urology"          # literal backslash-n
+    assert clean_text_py("Line one\nLine two\t end") == "Line one Line two end"   # real line break / tab
+    assert clean_text_py("A &amp; B\u00a0 hospital") == "A & B hospital"           # entity + non-breaking space
+    assert clean_text_py("keep \\\\n escaped") == "keep \\\\n escaped"        # escaped backslash survives (JSON)
+    assert split_list_py("Gastro Wing\\nPaediatric Wing, ENT; Dialysis") == ["Gastro Wing", "Paediatric Wing", "ENT", "Dialysis"]
+
+
+def test_specialty_normalisation():
+    from hc.ext import normalize_specialty as n
+
+    assert n("gynecologyAndObstetrics") == n("Obstetrics and Gynacology") == "obstetrics and gynecology"
+    assert n("Orthopaedics") == "orthopedics" and n("internalMedicine") == n("General Medicine") == "internal medicine"
+    assert n("Gastro Wing") == "gastroenterology" and n("ENT") == "otolaryngology"
+
+
+def test_ihds_text_patterns():
+    import re
+
+    from hc import ihds
+
+    assert set(ihds.SERVICE_TEXT_PATTERNS) == set(ihds.SERVICES)
+    assert re.search(ihds.SERVICE_TEXT_PATTERNS["MF13L"], "dots centre for tuberculosis")
+    assert re.search(ihds.SERVICE_TEXT_PATTERNS["MF13M"], "antenatal check-ups")
+
+
 if __name__ == "__main__":
     for name, fn in list(globals().items()):
         if name.startswith("test_"):

@@ -33,6 +33,8 @@ from pyspark.sql import functions as F
 from hc import geo
 from hc.io import META_COLS
 
+from .text import clean_text  # noqa: E402  (shared text normalisation)
+
 NULL_TOKENS = [
     "", "na", "n/a", "n.a.", "nan", "null", "none", "nil", ".", "-", "--", "?",
     "#n/a", "#na", "#value!", "#div/0!", "#ref!", "not available", "not applicable",
@@ -223,6 +225,16 @@ def clean_dataframe(df: DataFrame, overrides: dict | None = None, sample_rows: i
             select_exprs.append(f"coalesce({lv} IN ({_sql_list(SUPPRESSION_TOKENS)}), false) AS `{c}_is_suppressed`")
             note(c, "suppressed_to_null", f"small-cell suppression markers -> NULL; flag in {c}_is_suppressed", n_supp)
     df = df.selectExpr(*select_exprs)
+
+    # 3b. normalise text: escaped \n / real line breaks / invisible chars / HTML entities -> single spaces
+    text_cols = [c for c in string_cols if c not in META_COLS]
+    if text_cols:
+        changed = df.select(*[F.count_if(F.col(c) != clean_text(F.col(c))).alias(c) for c in text_cols]).first().asDict()
+        df = df.select(*[clean_text(F.col(c)).alias(c) if c in text_cols else F.col(c) for c in df.columns])
+        df = df.select(*[F.when(F.length(c) > 0, F.col(c)).alias(c) if c in text_cols else F.col(c) for c in df.columns])
+        for c, n in changed.items():
+            if n:
+                note(c, "normalized_text", "escaped \\n, line breaks, invisible characters or HTML entities -> single spaces", n)
 
     # 4. type inference + casting
     stats = infer_types(df, string_cols, n_in, sample_rows=sample_rows, keep_string=o.get("keep_string") or [])

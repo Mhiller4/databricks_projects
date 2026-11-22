@@ -27,9 +27,9 @@ if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
 import hc  # noqa: E402
-import hc.config, hc.naming, hc.io, hc.geo, hc.clean, hc.profile, hc.care, hc.ext, hc.ihds  # noqa: E401,E402
+import hc.config, hc.naming, hc.text, hc.io, hc.geo, hc.clean, hc.profile, hc.care, hc.ext, hc.ihds  # noqa: E401,E402
 
-for _m in (hc.config, hc.naming, hc.io, hc.geo, hc.clean, hc.profile, hc.care, hc.ext, hc.ihds):
+for _m in (hc.config, hc.naming, hc.text, hc.io, hc.geo, hc.clean, hc.profile, hc.care, hc.ext, hc.ihds):
     importlib.reload(_m)  # pick up edits to src/ without restarting Python
 
 from pyspark.sql import functions as F  # noqa: E402
