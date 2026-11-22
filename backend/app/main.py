@@ -143,9 +143,10 @@ def config():
 
 
 @app.get("/api/locations")
-def locations(q: str):
-    """Type-ahead for the location box: prefix matches from two characters, at most eight."""
-    return engine.location_suggest(get_store(), q)
+def locations(q: str, limit: int = engine.SUGGEST_LIMIT):
+    """Type-ahead for the location box: prefix matches from two characters (8 by default, at most 40;
+    the voice agent asks for more so it can narrow by district)."""
+    return engine.location_suggest(get_store(), q, limit=max(1, min(int(limit), 40)))
 
 
 @app.post("/api/recommend")
