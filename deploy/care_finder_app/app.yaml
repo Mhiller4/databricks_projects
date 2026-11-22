@@ -15,6 +15,6 @@ env:
   - name: CARE_FINDER_DATA
     value: "/tmp/care_finder_data"
   - name: CARE_FINDER_PHONE
-    value: ""
+    value: "+1 484 740 8220"   # LiveKit inbound number: the page shows a Call button and hides browser voice
   - name: LIVEKIT_AGENT_PORT
     value: "8091"

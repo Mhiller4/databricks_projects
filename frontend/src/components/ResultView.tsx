@@ -32,7 +32,7 @@ import { LocationBox, type LocValue } from './LocationBox'
 export const WEIGHT_PRESETS: { id: string; label: string; weights: Weights }[] = [
   { id: 'balanced', label: 'Balanced', weights: { proximity: 0.35, evidence: 0.3, trust: 0.2, depth: 0.15 } },
   { id: 'closest', label: 'Closest first', weights: { proximity: 0.65, evidence: 0.2, trust: 0.1, depth: 0.05 } },
-  { id: 'proof', label: 'Highest proof', weights: { proximity: 0.15, evidence: 0.45, trust: 0.3, depth: 0.1 } },
+  { id: 'proof', label: 'Strongest evidence', weights: { proximity: 0.15, evidence: 0.45, trust: 0.3, depth: 0.1 } },
 ]
 
 function Quote({ r }: { r: Rec }) {
@@ -95,7 +95,7 @@ function FacilityCard({
                 ? 'Best place to go'
                 : role === 'patient'
                   ? 'Backup option'
-                  : r.tier_label ?? 'Verified option'}
+                  : r.tier_label ?? 'Option'}
             </span>
           </div>
           <h3 className={isHero ? 'fac-name-lg' : 'fac-name'}>{r.name}</h3>
@@ -185,7 +185,7 @@ function FacilityCard({
               <span>WhatsApp</span>
             </a>
             <button type="button" className="link-accent ml-auto" onClick={onOpenDrawer}>
-              Full evidence &amp; weights →
+              All evidence and weights
             </button>
           </div>
         </div>
@@ -233,7 +233,6 @@ export function ResultView({
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [showFunnel, setShowFunnel] = useState(false)
   const [showMoreRanked, setShowMoreRanked] = useState(false)
   const [editing, setEditing] = useState(false)
   const [mobilePane, setMobilePane] = useState<'list' | 'map'>('list')
@@ -262,7 +261,7 @@ export function ResultView({
     return (
       <section className="narrow-state">
         <div className="state-card">
-          <span className="kicker">Location clarification</span>
+          <span className="kicker">Check the place</span>
           <h2>{T.clarifyTitle}</h2>
           <p className="muted">{payload.message}</p>
           <div className="clarify-grid">
@@ -293,11 +292,11 @@ export function ResultView({
     return (
       <section className="narrow-state">
         <div className="state-card">
-          <span className="kicker">Search could not complete</span>
-          <h2>We couldn’t match that query</h2>
+          <span className="kicker">Search didn’t work</span>
+          <h2>We couldn’t find that</h2>
           <div className="notice notice-warn">
             <IconAlert size={16} />
-            <span>{payload.message ?? 'Please refine the care type or location.'}</span>
+            <span>{payload.message ?? 'Try a different service or place.'}</span>
           </div>
           {svcOptions.length > 0 && onUpdateSearch && (
             <div className="chip-cloud">
@@ -334,11 +333,6 @@ export function ResultView({
     radius_km?: number
   }
   const desert = payload.medical_desert_alert
-  const funnel = payload.funnel ?? []
-  const totalStart = funnel[0]?.count
-  const inRadiusCount = funnel[4]?.count
-  const passedCount = funnel[6]?.count
-  const shownCount = funnel[7]?.count ?? visibleRecs.length
 
   const extraRanked = (payload.ranked ?? []).filter(
     (r) => !visibleRecs.some((v) => v.facility_id === r.facility_id),
@@ -393,7 +387,7 @@ export function ResultView({
               </div>
               <div className="results-sub-meta">
                 <span className={q.urgency === 'emergency' ? 'meta-urgent' : 'muted'}>
-                  {q.urgency === 'emergency' ? 'Emergency priority' : 'Routine priority'}
+                  {q.urgency === 'emergency' ? 'Emergency' : 'Routine'}
                 </span>
                 {q.radius_km != null && <span className="muted">· {Math.round(q.radius_km)} km search radius</span>}
                 {busy && <span className="updating-pill">Updating…</span>}
@@ -528,7 +522,7 @@ export function ResultView({
             {q.location.more_detail_prompt}{' '}
             {onUpdateSearch && (
               <button type="button" className="link-accent" onClick={() => setEditing(true)}>
-                Refine area or PIN
+                Add area or PIN
               </button>
             )}
           </span>
@@ -541,60 +535,6 @@ export function ResultView({
           <div>
             <strong>{T.desertTitle}.</strong> {desert.message}
           </div>
-        </div>
-      )}
-
-      {/* Compact 1-Line Expandable Funnel Strip */}
-      {funnel.length > 0 && (
-        <div className="funnel-strip-wrap">
-          <button
-            type="button"
-            className="funnel-strip"
-            onClick={() => setShowFunnel((s) => !s)}
-            aria-expanded={showFunnel}
-          >
-            <span className="funnel-summary-text">
-              <strong>{totalStart?.toLocaleString('en-IN')}</strong> records
-              <span className="funnel-sep">→</span>
-              <strong>{inRadiusCount?.toLocaleString('en-IN')}</strong> nearby
-              <span className="funnel-sep">→</span>
-              <strong>{passedCount?.toLocaleString('en-IN')}</strong> verified
-              <span className="funnel-sep">→</span>
-              <strong>{shownCount}</strong> {nearby.length ? 'recommended' : 'in range'}
-            </span>
-            <span className="funnel-strip-right">
-              {payload.elapsed_ms != null && (
-                <span className="mono muted">{Math.round(payload.elapsed_ms)} ms</span>
-              )}
-              <span className="funnel-toggle-lbl">
-                {showFunnel ? 'Hide gates' : 'How we decided'}
-                <IconChevronDown size={14} className={showFunnel ? 'rot-180' : ''} />
-              </span>
-            </span>
-          </button>
-
-          {showFunnel && (
-            <div className="funnel-drawer">
-              <ol className="funnel-grid">
-                {funnel.map((s, i, arr) => (
-                  <li key={s.stage} className={i === arr.length - 1 ? 'last' : ''}>
-                    <span className="funnel-n">{s.count.toLocaleString('en-IN')}</span>
-                    <span className="funnel-s">{s.stage}</span>
-                  </li>
-                ))}
-              </ol>
-              {payload.method && (
-                <div className="gates-box">
-                  <div className="group-h">{T.gates}</div>
-                  <ol className="plain-list">
-                    {payload.method.gates.map((g) => (
-                      <li key={g}>{g}</li>
-                    ))}
-                  </ol>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
 
@@ -614,7 +554,7 @@ export function ResultView({
           onClick={() => setMobilePane('map')}
         >
           <IconMap size={15} />
-          <span>Map view</span>
+          <span>Map</span>
         </button>
       </div>
 
@@ -624,7 +564,7 @@ export function ResultView({
         <div className={`results-list-col ${mobilePane === 'map' ? 'hide-mobile' : ''}`}>
           {!nearby.length && visibleRecs.length > 0 && (
             <div className="muted small section-lead">
-              Nearest verified options beyond the safe travel distance:
+              Nothing within a safe travel distance. These are the nearest options:
             </div>
           )}
 
@@ -651,7 +591,7 @@ export function ResultView({
           ) : (
             <div className="notice notice-warn">
               <IconAlert size={16} />
-              <span>No verified facility found within 600 km in this dataset.</span>
+              <span>We found no facility within 600 km in this dataset.</span>
             </div>
           )}
 
@@ -691,8 +631,8 @@ export function ResultView({
               >
                 <span>
                   {showMoreRanked
-                    ? 'Hide additional verified facilities'
-                    : `Show ${extraRanked.length} more verified facilities in range`}
+                    ? 'Hide the extra facilities'
+                    : `Show ${extraRanked.length} more facilities in range`}
                 </span>
                 <IconChevronDown size={14} className={showMoreRanked ? 'rot-180' : ''} />
               </button>
@@ -735,7 +675,7 @@ export function ResultView({
           {onWeights && visibleRecs.length > 0 && (
             <div className="weight-bar-card">
               <div className="weight-bar-top">
-                <span className="small muted">Ranking priority</span>
+                <span className="small muted">What matters most</span>
                 <button
                   type="button"
                   className="link-accent small"
@@ -745,7 +685,7 @@ export function ResultView({
                   }}
                 >
                   <IconSliders size={13} />
-                  <span>Custom sliders</span>
+                  <span>Fine-tune</span>
                 </button>
               </div>
               <div className="preset-row">

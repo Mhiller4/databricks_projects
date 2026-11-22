@@ -31,6 +31,7 @@ import logging
 import math
 import os
 import re
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
@@ -59,14 +60,14 @@ ROLE_ATTRIBUTE = "care_finder.role"  # set by the web page token (POST /api/live
 # ---------------------------------------------------------------------------------------------
 
 COMMON = """
-You are Care Finder, a phone assistant that helps people in India work out where to go for a specific kind of care.
+You are care.in (say it as "care dot in"), a phone assistant that helps people in India work out where to go for a specific kind of care.
 You sound like a calm, kind person on a health helpline: warm, unhurried, plain spoken.
 
 HOW A CONVERSATION GOES
 1. Find out what care is needed and where the patient is. A 6-digit PIN code or an area with its city
    ("Bandra, Mumbai") works best. For a big city, ask which area. Say the place back to confirm it
    ("Darbhanga in Bihar, is that right?"). Read a PIN back digit by digit.
-2. Call find_best_care.
+2. Call find_best_care, one kind of care at a time.
 3. Give the short answer: tell the caller what the tool's "answer" text says, in your own natural rhythm.
    That's where to go, one alternative, and how sure you are. Stop there. Don't add the reasons,
    the evidence or the other options yet.
@@ -80,7 +81,14 @@ HOW A CONVERSATION GOES
    - "What's their number?" -> read the phone number of the place they mean, slowly, in groups.
    - "Where exactly is it?" -> read that place's address.
    After each of these, check again if there's anything else.
-6. If the tool says the place needs clarifying (the same name in different areas), offer the options it gives
+6. MORE THAN ONE NEED. If the caller needs more than one kind of care ("dialysis for my father and an eye
+   operation for my mother"), say the list back in one sentence and start with the most urgent one. Give its
+   short answer, then say "Now for the <next one>" and search for it. Check the place for each one, since
+   different people may be in different places. Never merge two needs into one search.
+   Follow-up questions can be about any search on this call. If it's not clear which one they mean, ask.
+   For a search from earlier in the call, call recall_search to get it back exactly before you answer.
+   Before saying goodbye after two or more searches, offer a quick recap and say the recap_call text.
+7. If the tool says the place needs clarifying (the same name in different areas), offer the options it gives
    and search again with the one they pick. If the service or place is unknown, say so and ask them to rephrase.
    If location_is_precise is false and they haven't given an area yet, the answer already asks for one;
    search again when they tell you.
@@ -122,8 +130,8 @@ GUIDANCE (fixed wording only)
 """.strip()
 
 GREETER = """
-You are Care Finder's greeter. Your only job is to find out who is calling.
-Say: "Welcome to Care Finder. If you're a health worker or care provider, press 1 or say provider.
+You are care.in's greeter (say the name as "care dot in"). Your only job is to find out who is calling.
+Say: "Welcome to care dot in. If you're a health worker or care provider, press 1 or say provider.
 If you're a patient or family member, press 2 or say patient."
 - "1", "one", provider, health worker, ASHA, doctor, nurse, NGO, clinic staff -> call set_caller_type("provider").
 - "2", "two", patient, family, "my father", "my wife", "for myself" -> call set_caller_type("patient").
@@ -135,7 +143,8 @@ If you're a patient or family member, press 2 or say patient."
 INFO_POLICY = """
 WHAT YOU MAY USE
 - Facilities: only what find_best_care returned on this call (names, addresses, phone numbers, distances,
-  how sure we are, the reasons and cautions). Follow-ups come only from the last result.
+  how sure we are, the reasons and cautions). Follow-ups come from any search on this call
+  (recall_search gets an earlier one back exactly; recap_call summarises them all).
 - Places: only what find_place or find_best_care returned.
 - Services you cover: only list_services.
 - Guidance: only get_guidance text. Emergency numbers 108, 102 and 112 always.
@@ -228,8 +237,44 @@ def _compact(resp: dict) -> dict:
 # ---------------------------------------------------------------------------------------------
 
 
+@dataclass
+class CallState:
+    """Everything searched on this call, so follow-ups and the recap never depend on the model's memory."""
+
+    searches: list[dict] = field(default_factory=list)  # {"n", "service", "location", "result"} (compact results)
+
+    def add(self, service: str, location: str, result: dict) -> int:
+        self.searches.append({"n": len(self.searches) + 1, "service": result.get("service") or service,
+                              "location": result.get("location_used") or location, "result": result})
+        return len(self.searches)
+
+    def find(self, service: str) -> dict | None:
+        k = _norm(service)
+        hits = [s for s in self.searches if k and (k in _norm(s["service"]) or _norm(s["service"]) in k
+                                                    or service_key(service) == service_key(s["service"]))]
+        return (hits or [None])[-1]
+
+    def recap(self) -> str:
+        """One fixed-wording line per successful search: the place, how far, how sure, and its number."""
+        lines = []
+        for s in self.searches:
+            r = s["result"]
+            recs = r.get("recommendations") or []
+            if r.get("status") != "ok" or not recs:
+                continue
+            top = recs[0]
+            where = top.get("city") or top.get("district") or ""
+            label = re.sub(r"\s*\(.*?\)", "", s["service"]).split(" / ")[0]
+            svc = " ".join(w if w.isupper() else w.lower() for w in label.split())
+            line = f"For {svc} near {s['location'].split(' (')[0]}: {top['name']}" + (f" in {where}" if where else "")
+            line += f", about {top['distance_km']:.0f} km away, {str(top['confidence']).lower()} confidence"
+            line += f", phone {top['phone']}." if top.get("phone") else ", no phone number listed."
+            lines.append(line)
+        return " ".join(lines) or "We didn't find a place to recommend on this call."
+
+
 class CareAgent(Agent):
-    """A persona with the one grounded data tool."""
+    """A persona with the grounded data tools."""
 
     audience = ""
 
@@ -269,7 +314,33 @@ class CareAgent(Agent):
             log.exception("backend call failed")
             out = {"status": "error", "answer": "Sorry, I can't look that up right now. Could you try again in a minute?",
                    "detail": str(e)[:200]}
+        state: CallState = context.userdata
+        if out.get("status") == "ok":
+            out["search_number"] = state.add(service, location, out)
+        earlier = [{"search": s["n"], "service": s["service"], "location": s["location"]} for s in state.searches[:-1]]
+        if earlier:
+            out["earlier_searches_this_call"] = earlier
         return json.dumps(out, ensure_ascii=False)
+
+    @function_tool()
+    async def recall_search(self, context: RunContext, service: str) -> str:
+        """Get back the full result of an earlier search on this call, for a follow-up question about it.
+
+        Args:
+            service: The care the earlier search was for, e.g. "dialysis" or "cataract surgery".
+        """
+        state: CallState = context.userdata
+        hit = state.find(service)
+        if not hit:
+            return json.dumps({"status": "not_found", "searches_this_call": [s["service"] for s in state.searches],
+                               "say": "Ask which search they mean, or search again."}, ensure_ascii=False)
+        return json.dumps({"status": "ok", "search_number": hit["n"], **hit["result"]}, ensure_ascii=False)
+
+    @function_tool()
+    async def recap_call(self, context: RunContext) -> str:
+        """A short recap of every search on this call (place, distance, how sure, phone). Say it as given."""
+        state: CallState = context.userdata
+        return json.dumps({"status": "ok", "searches": len(state.searches), "say": state.recap()}, ensure_ascii=False)
 
     @function_tool()
     async def find_place(self, context: RunContext, place: str, near: str = "") -> str:
@@ -297,7 +368,7 @@ class CareAgent(Agent):
 
     @function_tool()
     async def list_services(self, context: RunContext) -> str:
-        """The kinds of care Care Finder can search for. Use when the caller asks what you can help with,
+        """The kinds of care care.in can search for. Use when the caller asks what you can help with,
         or asks for something you're not sure is covered."""
         try:
             r = await self.http.get(f"{API}/api/services")
@@ -472,7 +543,8 @@ server = AgentServer(port=int(os.environ.get("LIVEKIT_AGENT_PORT", "8091")))
 @server.rtc_session(agent_name=AGENT_NAME)
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
-    session = AgentSession(
+    session = AgentSession[CallState](
+        userdata=CallState(),
         llm=google.realtime.RealtimeModel(
             model=os.environ.get("GEMINI_MODEL") or "gemini-3.8-live",  # Fola is only available on 3.8 (checked Nov 21)
             voice=os.environ.get("GEMINI_VOICE", "Fola"),

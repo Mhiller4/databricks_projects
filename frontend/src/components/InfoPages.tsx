@@ -20,105 +20,124 @@ export function InfoPages({
     return (
       <article className="info-page">
         <header className="info-hero">
-          <span className="kicker">Clinical Verification Engine</span>
-          <h1>How Care Finder evaluates &amp; ranks facilities</h1>
+          <span className="kicker">How it works</span>
+          <h1>How care.in checks and ranks facilities</h1>
           <p className="muted">
-            Every recommendation passes a strict two-stage pipeline: deterministic safety gates first, followed by transparent multi-factor scoring. No facility is ever invented by a language model.
+            Each facility first has to pass five checks. The ones that pass are scored and ranked. Every facility
+            comes from the dataset; none are made up by an AI model.
           </p>
         </header>
 
         <section className="info-section">
-          <h2>1 · Five hard clinical gates</h2>
+          <h2>1 · Five checks every facility must pass</h2>
           <p className="muted">
-            Before any ranking weights are applied, a facility must pass every gate below. Even if a user drags the Distance slider to 100%, an unverified or mismatched facility will never surface.
+            A facility has to pass all five before it gets a score. Moving the Distance slider to 100% won’t bring
+            back one that failed.
           </p>
           <div className="info-grid-2">
             <div className="info-card">
-              <div className="info-card-num">Gate 01</div>
-              <h3>Direct facility-level evidence</h3>
+              <div className="info-card-num">Check 1</div>
+              <h3>The facility’s own record mentions the service</h3>
               <p className="muted small">
-                The requested service must appear explicitly in the facility’s own <code>procedure</code>, <code>equipment</code>, <code>capability</code>, or <code>description</code> fields — not merely an inferred broad specialty.
+                The service has to appear in the facility’s own <code>procedure</code>, <code>equipment</code>,{' '}
+                <code>capability</code> or <code>description</code> fields. A broad specialty on its own isn’t enough.
               </p>
             </div>
             <div className="info-card">
-              <div className="info-card-num">Gate 02</div>
-              <h3>Third-party listing exclusion</h3>
+              <div className="info-card-num">Check 2</div>
+              <h3>Text about other hospitals doesn’t count</h3>
               <p className="muted small">
-                Extracted web snippets that describe another hospital or generic referral directory text are flagged and excluded so merged records cannot mislead patients.
+                Web snippets that describe a different hospital, or read like a directory listing, are flagged and
+                left out, so a merged record can’t mislead anyone.
               </p>
             </div>
             <div className="info-card">
-              <div className="info-card-num">Gate 03</div>
-              <h3>Record trust ≥ 0.50</h3>
+              <div className="info-card-num">Check 3</div>
+              <h3>The record is trustworthy (trust ≥ 0.50)</h3>
               <p className="muted small">
-                Records are penalized for contradictory coordinates vs. India Post PIN centroids, single thin web sources, or shifted/corrupted schema fields.
+                A record loses trust when its coordinates disagree with its India Post PIN location, when it rests on
+                one thin web source, or when its fields look shifted or corrupted.
               </p>
             </div>
             <div className="info-card">
-              <div className="info-card-num">Gate 04 &amp; 05</div>
-              <h3>Facility-type fit &amp; travel radius</h3>
+              <div className="info-card-num">Checks 4 and 5</div>
+              <h3>The right kind of facility, within reach</h3>
               <p className="muted small">
-                Clinical plausibility (e.g., an eye clinic or dental practice cannot pass for NICU or dialysis) and service-specific travel decay radius (<code>τ × 3</code> routine, <code>τ × 2</code> emergency).
+                An eye clinic or dental practice can’t pass for NICU or dialysis. Each service also has its own
+                travel distance: <code>τ × 3</code> for routine care, <code>τ × 2</code> in an emergency.
               </p>
             </div>
           </div>
         </section>
 
         <section className="info-section">
-          <h2>2 · Weighted scoring &amp; three distinct tiers</h2>
+          <h2>2 · Scoring and the three picks</h2>
           <div className="formula-banner">
             <code>score = w₁·proximity + w₂·evidence + w₃·trust + w₄·depth</code>
             <span className="muted small">where proximity = exp(−km / τ) and evidence = evidence_score × type_fit</span>
           </div>
           <div className="info-grid-3">
             <div className="info-card">
-              <span className="tier-label">Tier 1</span>
+              <span className="tier-label">Pick 1</span>
               <h3>Best balanced</h3>
               <p className="muted small">
-                Highest combined score across distance, verified evidence strength, record trust, and clinical depth (beds, doctors, specific unit claims).
+                The highest combined score for distance, evidence, record trust and capacity (beds, doctors and named
+                units).
               </p>
             </div>
             <div className="info-card">
-              <span className="tier-label">Tier 2</span>
-              <h3>Nearest verified</h3>
+              <span className="tier-label">Pick 2</span>
+              <h3>Nearest that passes</h3>
               <p className="muted small">
-                Closest facility passing all five gates (prioritizing Medium or High confidence), ideal when travel time is the dominant clinical risk.
+                The closest facility that passes all five checks, preferring Medium or High confidence. Useful when
+                travel time is the biggest risk.
               </p>
             </div>
             <div className="info-card">
-              <span className="tier-label">Tier 3</span>
-              <h3>Highest-confidence</h3>
+              <span className="tier-label">Pick 3</span>
+              <h3>Most confident</h3>
               <p className="muted small">
-                Strongest corroborated evidence and record trust within the search radius, regardless of extra travel distance.
+                The strongest evidence and record trust within the search area, even if it’s further away.
               </p>
             </div>
           </div>
         </section>
 
         <section className="info-section">
-          <h2>3 · Confidence rubric &amp; care desert detection</h2>
+          <h2>3 · Confidence levels and care deserts</h2>
           <div className="rubric-table">
             <div className="rubric-row">
               <span className="chip chip-high">High</span>
-              <span>Two or more independent text fields corroborate the service (<code>evidence ≥ 0.75</code>), <code>trust ≥ 0.75</code>, and facility type fits cleanly.</span>
+              <span>
+                Two or more separate fields mention the service (<code>evidence ≥ 0.75</code>), trust is at least
+                0.75, and the facility type fits.
+              </span>
             </div>
             <div className="rubric-row">
               <span className="chip chip-medium">Medium</span>
-              <span>Direct evidence exists (<code>evidence ≥ 0.50</code>) with acceptable trust (<code>≥ 0.50</code>), typically from a single field — phone confirmation recommended.</span>
+              <span>
+                The record mentions the service directly (<code>evidence ≥ 0.50</code>), usually in one field, and
+                trust is at least 0.50. Call to confirm.
+              </span>
             </div>
             <div className="rubric-row">
               <span className="chip chip-low">Low</span>
-              <span>Sparse corroboration or caution flags present. Shown only when stronger options are unavailable, always with explicit call-ahead notices.</span>
+              <span>
+                Little evidence, or something looks off. Shown only when nothing stronger is available, and always
+                with a note to call first.
+              </span>
             </div>
           </div>
           <p className="muted small mt-3">
-            When zero verified facilities exist within a service’s safe travel scale (<code>τ</code>), Care Finder triggers a <strong>Care Desert Alert</strong>, draws the safe-distance boundary on the map, expands search up to 600 km to identify the nearest verified option, and reminds callers to also contact their district public hospital.
+            If no facility passes within a service’s safe travel distance (<code>τ</code>), care.in shows a care
+            desert alert. It draws that distance on the map, searches up to 600 km for the nearest option, and
+            suggests also calling the district public hospital.
           </p>
         </section>
 
         <div className="info-cta">
           <button type="button" className="btn btn-primary" onClick={onStartSearch}>
-            <span>Launch Care Finder</span>
+            <span>Start a search</span>
             <IconArrowRight size={16} />
           </button>
         </div>
@@ -130,10 +149,11 @@ export function InfoPages({
     return (
       <article className="info-page">
         <header className="info-hero">
-          <span className="kicker">About Care Finder</span>
-          <h1>Closing the verified referral gap across India</h1>
+          <span className="kicker">About care.in</span>
+          <h1>Helping people in India find the right care</h1>
           <p className="muted">
-            Built to help community health workers (ASHAs), NGO coordinators, clinicians, and families answer one urgent question: <em>where should this patient go for specialized care, and why should we trust that answer?</em>
+            care.in is for ASHA workers, NGO coordinators, clinicians and families who need to know where a
+            patient can get a specific kind of care, and how far to trust that answer.
           </p>
         </header>
 
@@ -141,40 +161,73 @@ export function InfoPages({
           <div className="info-grid-3">
             <div className="info-card">
               <span className="info-icon"><IconDatabase size={20} /></span>
-              <h3>Grounded Lakehouse Data</h3>
+              <h3>The data</h3>
               <p className="muted small">
-                Curated from {rawRecords} raw Virtue Foundation facility records ({uniqueRecords} deduplicated, {usableRecords} geospatially validated), cross-referenced against 165,627 India Post PIN centroids and 706 NFHS-5 district health indicators.
+                Built from {rawRecords} Virtue Foundation facility records ({uniqueRecords} after removing duplicates,{' '}
+                {usableRecords} with a usable location), checked against 165,627 India Post PIN locations and NFHS-5
+                health indicators for 706 districts.
               </p>
             </div>
             <div className="info-card">
               <span className="info-icon"><IconMic size={20} /></span>
-              <h3>Multilingual Voice &amp; Phone Access</h3>
+              <h3>Voice and phone</h3>
               <p className="muted small">
-                Designed for low-literacy and low-bandwidth contexts: callers can speak in English, Hindi, Marathi, Bengali, Tamil, Telugu, and other Indian languages via browser voice or direct phone helpline.
+                Callers can speak English, Hindi, Marathi, Bengali, Tamil, Telugu and other Indian languages. That
+                helps where reading is hard or mobile data is slow.
               </p>
             </div>
             <div className="info-card">
               <span className="info-icon"><IconSliders size={20} /></span>
-              <h3>Radical Explainability</h3>
+              <h3>The reasons, shown</h3>
               <p className="muted small">
-                Every card displays verbatim facility quotes, clickable web provenance, location conflict cautions, skipped closer facilities, and interactive weight sliders backed by real-time DuckDB serving.
+                Each result quotes the facility’s own record and links its web sources. It flags location conflicts,
+                lists closer facilities we skipped and why, and lets you change the ranking weights.
               </p>
             </div>
           </div>
         </section>
 
         <section className="info-section">
-          <h2>Platform Architecture</h2>
+          <h2>How we decided</h2>
+          <p className="muted">
+            Every search starts from all {rawRecords} records and narrows them down in the same order:
+          </p>
+          <div className="info-card">
+            <ol className="plain-list">
+              <li>
+                Remove exact duplicates ({uniqueRecords} left), then keep the records with a usable location (
+                {usableRecords}).
+              </li>
+              <li>Keep the ones that mention the service anywhere, including a related specialty.</li>
+              <li>Keep the ones within the service’s travel distance of the patient.</li>
+              <li>Keep the ones whose own text mentions the service directly, not just a specialty.</li>
+              <li>Keep the ones with a trustworthy record (trust ≥ 0.50) and the right type of facility.</li>
+              <li>Score the rest on distance, evidence, record trust and capacity, and show the top picks.</li>
+            </ol>
+          </div>
+          <p className="muted small mt-3">
+            How sure we are (High, Medium or Low) depends on how many parts of the record mention the service and
+            how much we trust the record. Low always comes with a note to call first. The full rules are on{' '}
+            <em>How it works</em>.
+          </p>
+        </section>
+
+        <section className="info-section">
+          <h2>How it’s built</h2>
           <div className="info-card">
             <ul className="plain-list">
               <li>
-                <strong>Data Pipeline (Databricks Unity Catalog):</strong> Bronze → Silver → Gold Delta tables normalize Indian state spellings, detect merged/corrupted records, extract service-level evidence snippets, and export serving Parquet snapshots.
+                The data pipeline runs on Databricks with Unity Catalog. Bronze, silver and gold Delta tables fix
+                state spellings, catch merged or corrupted records, pull out the evidence for each service, and export
+                Parquet files for serving.
               </li>
               <li>
-                <strong>Decision Engine (FastAPI + DuckDB):</strong> Sub-50ms deterministic geographic &amp; clinical gate evaluation running inside a unified Databricks App container.
+                Search runs on FastAPI and DuckDB inside one Databricks App. The checks and scoring are plain code, and
+                a search takes under 50 ms.
               </li>
               <li>
-                <strong>Voice &amp; Live Monitor (LiveKit + Gemini Live):</strong> Real-time WebRTC audio and SIP telephony bound strictly to a single grounded tool (<code>find_best_care</code>), with live visual mirroring on <code>/monitor</code>.
+                Voice uses LiveKit and Gemini Live. The agent can only answer from care.in’s own tools, and{' '}
+                <code>/monitor</code> shows each call’s search as it happens.
               </li>
             </ul>
           </div>
@@ -182,7 +235,7 @@ export function InfoPages({
 
         <div className="info-cta">
           <button type="button" className="btn btn-primary" onClick={onStartSearch}>
-            <span>Start a verified lookup</span>
+            <span>Start a search</span>
             <IconArrowRight size={16} />
           </button>
         </div>
@@ -190,22 +243,22 @@ export function InfoPages({
     )
   }
 
-  // Clinical & Data Policy
+  // Policy
   return (
     <article className="info-page">
       <header className="info-hero">
-        <span className="kicker">Clinical Governance &amp; Privacy</span>
-        <h1>Clinical Disclaimer, Data Limitations &amp; Privacy Policy</h1>
-        <p className="muted">
-          Effective November 2026 · Care Finder Decision-Support Standards
-        </p>
+        <span className="kicker">Policy</span>
+        <h1>Disclaimer, data limits and privacy</h1>
+        <p className="muted">Effective November 2026</p>
       </header>
 
       <section className="info-section">
         <div className="notice notice-warn">
           <IconAlert size={18} />
           <span>
-            <strong>Not medical advice or diagnosis.</strong> Care Finder is a healthcare navigation and directory-verification aid. It does not diagnose conditions, guarantee live bed/equipment availability, or substitute for licensed clinical judgment. In any life-threatening emergency in India, dial <strong>108</strong> immediately.
+            <strong>Not medical advice.</strong> care.in helps you find facilities and shows what their records
+            say. It doesn’t diagnose, can’t promise a free bed or working equipment today, and doesn’t replace a
+            clinician’s judgement. In a life-threatening emergency in India, call <strong>108</strong>.
           </span>
         </div>
       </section>
@@ -214,38 +267,47 @@ export function InfoPages({
         <div className="info-card">
           <div className="policy-head">
             <IconShieldCheck size={18} />
-            <h3>1. Grounding &amp; Zero-Hallucination Standard</h3>
+            <h3>1. Where answers come from</h3>
           </div>
           <p className="muted small">
-            Care Finder’s web interface and voice assistant are strictly constrained to facilities returned by the deterministic backend engine. Neither the UI nor the voice agent may fabricate hospital names, phone numbers, bed counts, clinical capabilities, or distances. Every surfaced claim is accompanied by its verbatim source field and confidence tier.
+            The website and the voice assistant only show facilities returned by care.in’s search engine. Neither
+            may make up hospital names, phone numbers, bed counts, services or distances. Each claim shows the field
+            it came from and a confidence level.
           </p>
         </div>
 
         <div className="info-card">
-          <h3>2. Dataset Coverage &amp; Known Limitations</h3>
+          <h3>2. What the data covers</h3>
           <p className="muted small">
-            Facility records originate primarily from the Virtue Foundation web-extracted dataset and public Indian directories. Because public/government facilities (PHCs, CHCs, and District Hospitals) are often under-represented online, a “Care Desert” alert reflects absence of verified records <em>in this dataset</em>—not necessarily complete absence of local public care. Always confirm active equipment, specialist staffing, and insurance acceptance (e.g., PM-JAY / Ayushman Bharat) by phone before travelling.
+            Most records come from the Virtue Foundation’s web-extracted dataset and public Indian directories.
+            Government facilities (PHCs, CHCs and district hospitals) are often missing online, so a care desert alert
+            means there’s no record we trust <em>in this dataset</em>, not that there’s no public care nearby. Always
+            call to check equipment, specialists and insurance (for example PM-JAY / Ayushman Bharat) before
+            travelling.
           </p>
         </div>
 
         <div className="info-card">
-          <h3>3. Privacy &amp; Voice Session Handling</h3>
+          <h3>3. Privacy</h3>
           <p className="muted small">
-            Manual searches require only a care category and approximate location (PIN, town, or GPS coordinates); no patient name, Aadhaar number, or personal health identifier (PHI) is requested or stored. Browser voice sessions use ephemeral, 15-minute scoped LiveKit room tokens. Callers are advised not to share personally identifiable medical records during voice inquiries.
+            A search needs only the type of care and a rough location (PIN code, town or GPS). We don’t ask for or
+            store names, Aadhaar numbers or health records. Browser voice sessions use LiveKit room tokens that expire
+            after 15 minutes. Please don’t share personal medical details during a call.
           </p>
         </div>
 
         <div className="info-card">
-          <h3>4. Corrections &amp; Institutional Inquiries</h3>
+          <h3>4. Corrections</h3>
           <p className="muted small">
-            Hospital administrators, NGOs, and district health planners wishing to update facility coordinates, phone numbers, or service capabilities can submit corrections through the Virtue Foundation open-data stewardship channel or partner Databricks Lakehouse feed.
+            Hospital administrators, NGOs and district planners can send corrections to coordinates, phone numbers or
+            services through the Virtue Foundation’s open-data channel or the partner Databricks feed.
           </p>
         </div>
       </section>
 
       <div className="info-cta">
         <button type="button" className="btn btn-primary" onClick={onStartSearch}>
-          <span>Return to Care Finder</span>
+          <span>Back to search</span>
           <IconArrowRight size={16} />
         </button>
       </div>

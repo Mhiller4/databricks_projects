@@ -2,9 +2,9 @@ import type { Confidence, Payload, Rec } from '../types'
 import { IconShieldCheck } from './Icons'
 
 export const CONFIDENCE_WORDS: Record<Confidence, string> = {
-  High: 'Strong multi-field evidence',
-  Medium: 'Likely offered — confirm by phone',
-  Low: 'Limited evidence — call before going',
+  High: 'Several parts of their record mention it',
+  Medium: 'Probably offered. Call to confirm.',
+  Low: 'Little evidence. Call before you go.',
 }
 
 export function ConfidenceChip({ c }: { c: string }) {
@@ -32,10 +32,10 @@ export function buildReferral(r: Rec, p: Payload): string {
     `Referral · ${svc}`,
     `${r.name}${r.facility_type ? ` (${r.facility_type})` : ''} · ${km(r.distance_km)} from ${where}`,
     `Address: ${r.address ?? 'not listed'} · Phone: ${r.phone ?? 'not listed'}`,
-    `Why: ${r.why[0] ?? 'Passes all Care Finder verification checks.'}`,
-    `Confidence: ${r.confidence} — ${r.confidence_reason}`,
+    `Why: ${r.why[0] ?? 'Passes all five care.in checks.'}`,
+    `Confidence: ${r.confidence}. ${r.confidence_reason}`,
     `Cautions: ${r.cautions.length ? r.cautions.join('; ') : 'none listed'}`,
-    `Source: Care Finder (Virtue Foundation dataset, ${date}) · call ahead before travelling`,
+    `Source: care.in (Virtue Foundation dataset, ${date}) · call ahead before travelling`,
   ].join('\n')
 }
 

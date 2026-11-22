@@ -109,14 +109,14 @@ function Session({
   }
 
   return (
-    <div className="sheet" role="dialog" aria-label="Care Finder Assistant">
+    <div className="sheet" role="dialog" aria-label="care.in Assistant">
       <div className="sheet-head">
         <div className={`orb orb-${state}`} aria-hidden="true">
           <BarVisualizer state={state} trackRef={audioTrack} barCount={5} className="viz" />
         </div>
         <div className="sheet-state">
           <strong aria-live="polite">{T.states[state] ?? state}</strong>
-          <span className="muted small">Speak naturally or type below — answers cite verified records.</span>
+          <span className="muted small">Talk or type. Answers come from care.in's records.</span>
         </div>
         <button
           type="button"
@@ -244,7 +244,7 @@ export function VoiceSheet({
             className="fab"
             onClick={() => start('voice')}
             disabled={busy}
-            aria-label="Talk to Care Finder"
+            aria-label="Talk to care.in"
           >
             <IconMic size={19} />
             <span>{busy ? 'Connecting…' : T.tapToTalk}</span>

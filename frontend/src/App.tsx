@@ -174,27 +174,29 @@ export default function App() {
   }
 
   const showResults = tab === 'find' && payload !== null
+  // Browser voice keeps dropping in testing; when a phone line is set, the page offers that instead.
+  const webVoice = !!cfg?.livekit_enabled && !cfg?.phone_number
 
   return (
     <div className="app">
-      {/* Persistent Clinical Top Bar — 108 SOS stays strictly pinned top-right */}
+      {/* Top bar: 108 SOS stays pinned top right */}
       <header className="topbar">
         <div className="topbar-inner">
-          <button type="button" className="brand" onClick={resetToHome} aria-label="Care Finder home">
+          <button type="button" className="brand" onClick={resetToHome} aria-label="care.in home">
             <span className="logo">
               <IconPlus size={18} />
             </span>
             <span className="brand-text">
               <strong>{T.appName}</strong>
-              <span className="brand-sub hide-xs">India Clinical Directory</span>
+              <span className="brand-sub hide-xs">Hospitals and clinics in India</span>
             </span>
           </button>
 
           <nav className="topnav" aria-label="Primary navigation">
             {(
               [
-                ['find', 'Find Care'],
-                ['methodology', 'How It Works'],
+                ['find', 'Find care'],
+                ['methodology', 'How it works'],
                 ['about', 'About'],
                 ['policy', 'Policy'],
               ] as const
@@ -259,6 +261,7 @@ export default function App() {
               setTab(t)
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
+            webVoice={webVoice}
           />
         )}
 
@@ -272,7 +275,7 @@ export default function App() {
             urgency={urgency}
             weights={weights}
             busy={busy}
-            voiceEnabled={!!cfg?.livekit_enabled}
+            voiceEnabled={webVoice}
             onOpen={setDrawer}
             onClarify={onClarify}
             onMove={onMove}
@@ -309,23 +312,23 @@ export default function App() {
           </div>
           <div className="footer-links">
             <button type="button" className="link-subtle small" onClick={() => setTab('methodology')}>
-              How It Works
+              How it works
             </button>
             <button type="button" className="link-subtle small" onClick={() => setTab('about')}>
               About
             </button>
             <button type="button" className="link-subtle small" onClick={() => setTab('policy')}>
-              Clinical Policy
+              Policy
             </button>
             <a className="link-subtle small" href="/monitor">
-              Live Monitor
+              Live call monitor
             </a>
           </div>
         </div>
       </footer>
 
       <VoiceSheet
-        enabled={!!cfg?.livekit_enabled}
+        enabled={webVoice}
         role={role}
         onResult={onVoiceResult}
         trigger={voiceTrigger}

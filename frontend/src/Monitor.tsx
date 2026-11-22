@@ -71,7 +71,7 @@ export default function Monitor() {
           </a>
           <div className="bar-right">
             <a className="btn btn-ghost btn-sm" href="/">
-              ← Back to Care Finder
+              ← Back to care.in
             </a>
           </div>
         </div>
@@ -84,7 +84,7 @@ export default function Monitor() {
               <span className="kicker">Phone &amp; Voice Telemetry</span>
               <h2>{T.monitorWaiting}</h2>
               <p className="muted small">
-                When a caller or web voice session queries Care Finder, the grounded map, tiered facility cards, and spoken summary appear here automatically.
+                When a caller or web voice session queries care.in, the grounded map, tiered facility cards, and spoken summary appear here automatically.
               </p>
             </div>
           </div>

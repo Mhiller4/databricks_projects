@@ -167,7 +167,7 @@ export function CareMap({
           <i className="dot dot-you" /> Patient{onMove ? ' (drag pin)' : ''}
         </span>
         <span>
-          <i className="dot dot-rec" /> Verified ({recs.length})
+          <i className="dot dot-rec" /> Recommended ({recs.length})
         </span>
         {showSkipped && skipped.length > 0 && (
           <span>

@@ -63,7 +63,7 @@ export function WhyHowDrawer({
       >
         <header className="drawer-head">
           <div className="drawer-title-wrap">
-            <div className="tier-label">{rec.tier_label ?? 'Verified facility'}</div>
+            <div className="tier-label">{rec.tier_label ?? 'Facility'}</div>
             <h2>{rec.name}</h2>
             <div className="muted small">
               {[rec.facility_type, km(rec.distance_km)].filter(Boolean).join(' · ')}
@@ -128,7 +128,7 @@ export function WhyHowDrawer({
               <blockquote key={i} className="quote">
                 <span className="quote-field">{FIELD_LABEL[c.field] ?? c.field}</span> “{c.text}”
                 {c.third_party && (
-                  <span className="muted small"> (reads like a directory listing referencing another facility)</span>
+                  <span className="muted small"> (looks like a directory listing about another facility)</span>
                 )}
               </blockquote>
             ))}
@@ -233,18 +233,6 @@ export function WhyHowDrawer({
               })}
             </div>
             <p className="muted small mt-2">{T.weightsNote}</p>
-          </section>
-        )}
-
-        {/* Method Gates & Confidence Rules */}
-        {payload.method && (
-          <section className="drawer-sec">
-            <h4>{T.gates}</h4>
-            <ol className="plain-list">
-              {payload.method.gates.map((g) => (
-                <li key={g}>{g}</li>
-              ))}
-            </ol>
           </section>
         )}
 
